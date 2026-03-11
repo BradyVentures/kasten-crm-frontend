@@ -9,8 +9,26 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        'bd-bg': '#2a2a2a',
+        'bd-bg-secondary': '#303030',
+        'bd-card': '#363636',
+        'bd-card-hover': '#3d3d3d',
+        'bd-accent': '#CCFF00',
+        'bd-accent-dim': 'rgba(204, 255, 0, 0.08)',
+        'bd-accent-medium': 'rgba(204, 255, 0, 0.15)',
+        'bd-text': '#FFFFFF',
+        'bd-text-secondary': '#999999',
+        'bd-text-body': '#bbbbbb',
+        'bd-text-muted': '#555555',
+        'bd-border': 'rgba(255, 255, 255, 0.06)',
+        'bd-border-accent': 'rgba(204, 255, 0, 0.25)',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        heading: ['Outfit', 'Inter', 'sans-serif'],
+      },
+      borderRadius: {
+        'bd': '16px',
       },
     },
   },

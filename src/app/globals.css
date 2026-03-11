@@ -2,26 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    @apply bg-bd-bg text-bd-text;
   }
-}
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
+  ::selection {
+    @apply bg-bd-accent text-bd-bg;
+  }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-bd-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bd-text-muted rounded-full;
+  }
+
+  input, textarea, select {
+    @apply bg-bd-bg-secondary border border-bd-border rounded-lg px-3 py-2 text-bd-text
+      placeholder:text-bd-text-muted
+      focus:outline-none focus:border-bd-border-accent focus:ring-1 focus:ring-bd-accent/20
+      transition-colors;
   }
 }
