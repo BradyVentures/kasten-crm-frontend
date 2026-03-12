@@ -122,7 +122,7 @@ export default function LeadsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-2xl font-bold">Leads</h1>
         <div className="flex gap-2">
           <Link
@@ -141,13 +141,13 @@ export default function LeadsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mb-4">
         <input
           type="text"
           placeholder="Suchen..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-64"
+          className="w-full sm:w-64 col-span-2"
         />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">Alle Status</option>
@@ -203,8 +203,8 @@ export default function LeadsPage() {
       )}
 
       {/* Leads Table */}
-      <div className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
-        <table className="w-full">
+      <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
+        <table className="w-full min-w-[900px]">
           <thead>
             <tr className="border-b border-bd-border text-left">
               <th className="px-3 py-3 w-10">
@@ -359,7 +359,7 @@ function CreateLeadModal({ open, onClose, users, onCreated }: {
           <label className="block text-sm text-bd-text-secondary mb-1">Firmenname *</label>
           <input required className="w-full" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Kontaktperson</label>
             <input className="w-full" value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
@@ -369,7 +369,7 @@ function CreateLeadModal({ open, onClose, users, onCreated }: {
             <input className="w-full" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">E-Mail</label>
             <input type="email" className="w-full" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />

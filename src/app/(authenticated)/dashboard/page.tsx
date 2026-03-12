@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
               return (
                 <div key={status} className="flex items-center gap-3">
-                  <span className={`text-sm w-28 ${cfg.color}`}>{cfg.label}</span>
+                  <span className={`text-sm w-20 sm:w-28 shrink-0 ${cfg.color}`}>{cfg.label}</span>
                   <div className="flex-1 bg-bd-bg-secondary rounded-full h-6 overflow-hidden">
                     <div
                       className={`h-full rounded-full ${cfg.bg} flex items-center pl-2`}

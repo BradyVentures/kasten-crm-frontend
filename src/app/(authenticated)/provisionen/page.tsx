@@ -47,7 +47,7 @@ export default function ProvisionenPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-6">
         {isAdmin && (
           <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
             <option value="">Alle Mitarbeiter</option>
@@ -119,11 +119,11 @@ export default function ProvisionenPage() {
       )}
 
       {/* Detail Table */}
-      <div className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
+      <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
         <div className="px-4 py-3 border-b border-bd-border">
           <h2 className="font-heading font-semibold">Einzelne Verkäufe</h2>
         </div>
-        <table className="w-full">
+        <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-bd-border text-left">
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Datum</th>

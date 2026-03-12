@@ -56,7 +56,7 @@ export default function KundenDetailPage() {
         &larr; Zur&uuml;ck zu Kunden
       </button>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-2xl font-bold">{customer.company_name}</h1>
         <button onClick={() => setShowAssign(true)} className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
           + Service zuweisen
@@ -68,7 +68,7 @@ export default function KundenDetailPage() {
         <div className="lg:col-span-2">
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border mb-6">
             <h2 className="font-heading font-semibold mb-4">Kundendaten</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-bd-text-muted">Kontaktperson</span>
                 <p className="mt-1">{customer.contact_person || '–'}</p>
@@ -102,7 +102,7 @@ export default function KundenDetailPage() {
             {customer.services && customer.services.length > 0 ? (
               <div className="space-y-3">
                 {customer.services.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between py-3 border-b border-bd-border last:border-0">
+                  <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-bd-border last:border-0">
                     <div>
                       <p className="font-medium">{s.service_name}</p>
                       <div className="flex gap-2 mt-1">
@@ -255,7 +255,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (€) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} />

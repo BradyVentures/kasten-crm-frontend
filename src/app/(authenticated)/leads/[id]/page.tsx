@@ -109,7 +109,7 @@ export default function LeadDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <button onClick={() => router.push('/leads')} className="text-sm text-bd-text-muted hover:text-bd-text mb-2 block">
             ← Zurück zu Leads
@@ -138,7 +138,7 @@ export default function LeadDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-semibold">Lead-Details</h2>
               {!readOnly && (
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select value={lead.status} onChange={(e) => handleStatusChange(e.target.value as LeadStatus)} className="text-sm">
                     {ALL_STATUSES.map((s) => (
                       <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
@@ -154,7 +154,7 @@ export default function LeadDetailPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-bd-text-muted">Status</span>
                 <div className="mt-1">

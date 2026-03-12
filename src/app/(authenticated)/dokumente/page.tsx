@@ -110,7 +110,7 @@ export default function DokumentePage() {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         {CATEGORIES.map(cat => (
           <button
             key={cat}

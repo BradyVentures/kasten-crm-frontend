@@ -74,7 +74,7 @@ function CreateCustomerModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Ansprechpartner</label>
             <input
@@ -95,7 +95,7 @@ function CreateCustomerModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">E-Mail</label>
             <input
@@ -126,7 +126,7 @@ function CreateCustomerModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">PLZ</label>
             <input
@@ -214,7 +214,7 @@ export default function KundenPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-2xl font-bold">Kunden</h1>
         <button
           onClick={handleOpenCreate}
@@ -230,12 +230,12 @@ export default function KundenPage() {
           placeholder="Suchen..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-64"
+          className="w-full sm:w-64"
         />
       </div>
 
-      <div className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
-        <table className="w-full">
+      <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
+        <table className="w-full min-w-[500px]">
           <thead>
             <tr className="border-b border-bd-border text-left">
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Firma</th>

@@ -62,7 +62,7 @@ export default function AdminServicesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="font-heading text-2xl font-bold">Services verwalten</h1>
           <p className="text-sm text-bd-text-muted mt-1">
@@ -82,7 +82,7 @@ export default function AdminServicesPage() {
       <div className="flex gap-2 mb-6 flex-wrap">
         <button
           onClick={() => setFilterCategory('alle')}
-          className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
+          className={`px-3 py-2 sm:py-1.5 text-xs rounded-lg border transition-all ${
             filterCategory === 'alle'
               ? 'bg-bd-accent text-bd-bg border-bd-accent font-semibold'
               : 'border-bd-border text-bd-text-body hover:border-bd-accent/50'
@@ -94,7 +94,7 @@ export default function AdminServicesPage() {
           <button
             key={cat}
             onClick={() => setFilterCategory(cat)}
-            className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
+            className={`px-3 py-2 sm:py-1.5 text-xs rounded-lg border transition-all ${
               filterCategory === cat
                 ? 'bg-bd-accent text-bd-bg border-bd-accent font-semibold'
                 : 'border-bd-border text-bd-text-body hover:border-bd-accent/50'
@@ -106,7 +106,7 @@ export default function AdminServicesPage() {
         {inactiveCount > 0 && (
           <button
             onClick={() => setFilterCategory('inaktiv')}
-            className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
+            className={`px-3 py-2 sm:py-1.5 text-xs rounded-lg border transition-all ${
               filterCategory === 'inaktiv'
                 ? 'bg-red-500 text-white border-red-500 font-semibold'
                 : 'border-bd-border text-red-400 hover:border-red-400/50'
@@ -130,8 +130,8 @@ export default function AdminServicesPage() {
                 <h2 className="text-lg font-semibold">{category}</h2>
                 <span className="text-xs text-bd-text-muted">{catServices.length} Services</span>
               </div>
-              <div className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
-                <table className="w-full">
+              <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
+                <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="border-b border-bd-border text-left">
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Name</th>
@@ -213,8 +213,8 @@ export default function AdminServicesPage() {
           ))
       ) : (
         /* Inactive services flat list */
-        <div className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
-          <table className="w-full">
+        <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-bd-border text-left">
                 <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Name</th>
@@ -350,7 +350,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
           <textarea rows={2} className="w-full" placeholder="Design, Texterstellung, SEO, ..." value={form.includes} onChange={(e) => setForm({ ...form, includes: e.target.value })} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Kategorie</label>
             <select className="w-full" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
@@ -368,7 +368,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Basispreis (€) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />

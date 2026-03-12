@@ -35,12 +35,12 @@ export default function InfoCenterPage() {
       <h1 className="font-heading text-2xl font-bold mb-6">Info Center</h1>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 mb-6 border-b border-bd-border">
+      <div className="flex gap-1 mb-6 border-b border-bd-border overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0 ${
               activeTab === tab.key
                 ? 'border-bd-accent text-bd-accent'
                 : 'border-transparent text-bd-text-muted hover:text-bd-text'
