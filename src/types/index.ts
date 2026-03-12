@@ -114,6 +114,8 @@ export interface Region {
   name: string;
   plzFrom: string;
   plzTo: string;
+  bundesland: string;
+  landkreis: string;
 }
 
 export interface DashboardStats {
