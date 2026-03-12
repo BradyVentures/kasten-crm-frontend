@@ -69,7 +69,7 @@ export default function ProvisionenPage() {
             onClick={() => { setDateFrom(''); setDateTo(''); setSelectedEmployee(''); }}
             className="text-xs text-bd-text-muted hover:text-bd-text transition-colors"
           >
-            Filter zur\u00fccksetzen
+            Filter zurücksetzen
           </button>
         )}
       </div>
@@ -77,7 +77,7 @@ export default function ProvisionenPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
-          <p className="text-sm text-bd-text-secondary">Verk\u00e4ufe gesamt</p>
+          <p className="text-sm text-bd-text-secondary">Verkäufe gesamt</p>
           <p className="text-2xl font-bold mt-1">{totalSales}</p>
         </div>
         <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
@@ -93,14 +93,14 @@ export default function ProvisionenPage() {
       {/* Per-Employee Summary */}
       {isAdmin && summary.length > 0 && (
         <div className="mb-6">
-          <h2 className="font-heading font-semibold mb-3">\u00dcbersicht pro Mitarbeiter</h2>
+          <h2 className="font-heading font-semibold mb-3">Übersicht pro Mitarbeiter</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {summary.filter(s => Number(s.total_sales) > 0).map((s) => (
               <div key={s.employee_id} className="bg-bd-card rounded-bd p-4 border border-bd-border">
                 <p className="font-medium mb-2">{s.employee_name}</p>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <p className="text-bd-text-muted text-xs">Verk\u00e4ufe</p>
+                    <p className="text-bd-text-muted text-xs">Verkäufe</p>
                     <p className="font-semibold">{Number(s.total_sales)}</p>
                   </div>
                   <div>
@@ -121,7 +121,7 @@ export default function ProvisionenPage() {
       {/* Detail Table */}
       <div className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
         <div className="px-4 py-3 border-b border-bd-border">
-          <h2 className="font-heading font-semibold">Einzelne Verk\u00e4ufe</h2>
+          <h2 className="font-heading font-semibold">Einzelne Verkäufe</h2>
         </div>
         <table className="w-full">
           <thead>
@@ -151,7 +151,7 @@ export default function ProvisionenPage() {
                       <span className="text-xs text-bd-text-muted ml-1">({months} Mo)</span>
                     )}
                   </td>
-                  {isAdmin && <td className="px-4 py-3 text-sm text-bd-text-body">{d.employee_name || '\u2013'}</td>}
+                  {isAdmin && <td className="px-4 py-3 text-sm text-bd-text-body">{d.employee_name || '–'}</td>}
                   <td className="px-4 py-3 text-sm text-right">
                     {formatCurrency(Number(d.sold_price))}{isMonthly ? '/Mo' : ''}
                   </td>
@@ -166,7 +166,7 @@ export default function ProvisionenPage() {
             {details.length === 0 && (
               <tr>
                 <td colSpan={isAdmin ? 8 : 7} className="px-4 py-8 text-center text-bd-text-muted">
-                  Keine Verk\u00e4ufe gefunden.
+                  Keine Verkäufe gefunden.
                 </td>
               </tr>
             )}

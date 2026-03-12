@@ -67,7 +67,7 @@ export default function AdminServicesPage() {
           <h1 className="font-heading text-2xl font-bold">Services verwalten</h1>
           <p className="text-sm text-bd-text-muted mt-1">
             {(services || []).filter(s => s.is_active).length} aktive Services
-            {inactiveCount > 0 && ` \u00B7 ${inactiveCount} inaktiv`}
+            {inactiveCount > 0 && ` · ${inactiveCount} inaktiv`}
           </p>
         </div>
         <button
@@ -168,7 +168,7 @@ export default function AdminServicesPage() {
                             {Number(s.commission_rate) > 0 ? (
                               <span className="text-bd-accent font-medium">{Number(s.commission_rate)}%</span>
                             ) : (
-                              <span className="text-bd-text-muted">\u2013</span>
+                              <span className="text-bd-text-muted">–</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -227,7 +227,7 @@ export default function AdminServicesPage() {
               {filteredServices.map((s) => (
                 <tr key={s.id} className="border-b border-bd-border last:border-0 opacity-60">
                   <td className="px-4 py-3 font-medium">{s.name}</td>
-                  <td className="px-4 py-3 text-sm text-bd-text-muted">{s.category || '\u2013'}</td>
+                  <td className="px-4 py-3 text-sm text-bd-text-muted">{s.category || '–'}</td>
                   <td className="px-4 py-3 text-sm">{formatCurrency(Number(s.base_price))}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handleEdit(s)} className="text-xs text-bd-accent hover:brightness-110 mr-3">Bearbeiten</button>
@@ -337,12 +337,12 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
 
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Kurzbeschreibung</label>
-          <input className="w-full" placeholder="Ein Satz, der den Service erkl\u00E4rt" value={form.short_description} onChange={(e) => setForm({ ...form, short_description: e.target.value })} />
+          <input className="w-full" placeholder="Ein Satz, der den Service erklärt" value={form.short_description} onChange={(e) => setForm({ ...form, short_description: e.target.value })} />
         </div>
 
         <div>
-          <label className="block text-sm text-bd-text-secondary mb-1">Ausf\u00FChrliche Beschreibung</label>
-          <textarea rows={4} className="w-full" placeholder="Detaillierte Erkl\u00E4rung f\u00FCr den Kunden..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <label className="block text-sm text-bd-text-secondary mb-1">Ausführliche Beschreibung</label>
+          <textarea rows={4} className="w-full" placeholder="Detaillierte Erklärung für den Kunden..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
 
         <div>
@@ -370,7 +370,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
 
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-sm text-bd-text-secondary mb-1">Basispreis (\u20AC) *</label>
+            <label className="block text-sm text-bd-text-secondary mb-1">Basispreis (€) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />
           </div>
           <div>

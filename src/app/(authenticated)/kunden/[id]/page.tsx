@@ -71,23 +71,23 @@ export default function KundenDetailPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-bd-text-muted">Kontaktperson</span>
-                <p className="mt-1">{customer.contact_person || '\u2013'}</p>
+                <p className="mt-1">{customer.contact_person || '–'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">E-Mail</span>
-                <p className="mt-1">{customer.email || '\u2013'}</p>
+                <p className="mt-1">{customer.email || '–'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Telefon</span>
-                <p className="mt-1">{customer.phone || '\u2013'}</p>
+                <p className="mt-1">{customer.phone || '–'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Website</span>
-                <p className="mt-1">{customer.website || '\u2013'}</p>
+                <p className="mt-1">{customer.website || '–'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Stadt</span>
-                <p className="mt-1">{customer.city || '\u2013'}</p>
+                <p className="mt-1">{customer.city || '–'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Kunde seit</span>
@@ -126,7 +126,7 @@ export default function KundenDetailPage() {
                         {Number(s.commission_rate) > 0 && (
                           <p className="text-xs text-bd-text-muted">
                             Prov: {formatCurrency(Number(s.commission_amount))} ({Number(s.commission_rate)}%
-                            {s.price_model === 'monatlich' && s.contract_months ? ` \u00d7 ${s.contract_months} Mo` : ''})
+                            {s.price_model === 'monatlich' && s.contract_months ? ` × ${s.contract_months} Mo` : ''})
                           </p>
                         )}
                       </div>
@@ -146,7 +146,7 @@ export default function KundenDetailPage() {
         {/* Revenue Summary */}
         <div className="space-y-4">
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
-            <h2 className="font-heading font-semibold mb-3">Umsatz-\u00dcbersicht</h2>
+            <h2 className="font-heading font-semibold mb-3">Umsatz-Übersicht</h2>
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-bd-text-secondary">Einmalig</p>
@@ -247,7 +247,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Service *</label>
           <select required className="w-full" value={serviceId} onChange={(e) => handleServiceSelect(e.target.value)}>
-            <option value="">Service ausw\u00e4hlen...</option>
+            <option value="">Service auswählen...</option>
             {services.filter((s) => s.is_active).map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name} ({formatCurrency(s.base_price)} / {s.price_model})
@@ -257,7 +257,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (\u20ac) *</label>
+            <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (€) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} />
           </div>
           <div>
@@ -304,7 +304,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
             </div>
             {priceModel === 'monatlich' && (
               <p className="text-xs text-bd-text-muted mt-1">
-                {formatCurrency(soldPriceNum)}/Mo \u00d7 {contractMonthsNum} Mo \u00d7 {commissionRate}%
+                {formatCurrency(soldPriceNum)}/Mo × {contractMonthsNum} Mo × {commissionRate}%
               </p>
             )}
           </div>

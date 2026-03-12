@@ -21,7 +21,7 @@ type Tab = 'katalog' | 'leitfaden' | 'einwaende' | 'rechner' | 'faq';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'katalog', label: 'Service-Katalog' },
-  { key: 'leitfaden', label: 'Gespr\u00e4chsleitfaden' },
+  { key: 'leitfaden', label: 'Gesprächsleitfaden' },
   { key: 'einwaende', label: 'Einwandbehandlung' },
   { key: 'rechner', label: 'Preisrechner' },
   { key: 'faq', label: 'FAQ' },
@@ -378,7 +378,7 @@ function Preisrechner() {
             value={addServiceId}
             onChange={(e) => setAddServiceId(e.target.value)}
           >
-            <option value="">Service hinzuf\u00fcgen...</option>
+            <option value="">Service hinzufügen...</option>
             {activeServices
               .filter((s) => !selectedServices.some((sel) => sel.serviceId === s.id))
               .map((s) => (
@@ -439,7 +439,7 @@ function Preisrechner() {
                             className="w-20 text-center text-sm"
                           />
                         ) : (
-                          <span className="text-bd-text-muted">\u2013</span>
+                          <span className="text-bd-text-muted">–</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-right font-medium">
@@ -450,7 +450,7 @@ function Preisrechner() {
                           onClick={() => handleRemove(serviceId)}
                           className="text-xs text-red-400 hover:text-red-300"
                         >
-                          \u00d7
+                          ×
                         </button>
                       </td>
                     </tr>
@@ -462,7 +462,7 @@ function Preisrechner() {
         ) : (
           <div className="bg-bd-card rounded-bd border border-bd-border p-8 text-center">
             <p className="text-bd-text-muted text-sm">
-              W\u00e4hlen Sie Services aus, um eine Preisberechnung zu erstellen.
+              Wählen Sie Services aus, um eine Preisberechnung zu erstellen.
             </p>
           </div>
         )}
@@ -488,7 +488,7 @@ function Preisrechner() {
           </div>
         </div>
         <p className="text-xs text-bd-text-muted">
-          Preise k\u00f6nnen im Verkaufsgespr\u00e4ch angepasst werden. Hier werden die Listenpreise verwendet.
+          Preise können im Verkaufsgespräch angepasst werden. Hier werden die Listenpreise verwendet.
         </p>
       </div>
     </div>

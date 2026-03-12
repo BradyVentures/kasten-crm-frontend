@@ -253,7 +253,7 @@ export default function KundenPage() {
                     {c.company_name}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-sm text-bd-text-body">{c.contact_person || '\u2013'}</td>
+                <td className="px-4 py-3 text-sm text-bd-text-body">{c.contact_person || '–'}</td>
                 <td className="px-4 py-3">
                   <Badge color="text-bd-accent" bg="bg-bd-accent-dim">
                     {c.service_count} Service{Number(c.service_count) !== 1 ? 's' : ''}
