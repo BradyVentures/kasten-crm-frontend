@@ -109,6 +109,13 @@ export interface LeadLock {
   expires_at: string;
 }
 
+export interface Region {
+  id: string;
+  name: string;
+  plzFrom: string;
+  plzTo: string;
+}
+
 export interface DashboardStats {
   leads_by_status: Record<string, number>;
   total_leads: number;

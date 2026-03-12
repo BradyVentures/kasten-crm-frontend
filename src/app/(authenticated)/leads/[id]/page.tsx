@@ -89,15 +89,6 @@ export default function LeadDetailPage() {
     fetchLead();
   };
 
-  const handleConvert = async () => {
-    try {
-      const { data } = await api.post(`/leads/${id}/convert`);
-      router.push(`/kunden/${data.id}`);
-    } catch {
-      alert('Fehler bei der Konvertierung');
-    }
-  };
-
   if (!lead) {
     return <div className="flex items-center justify-center h-64">
       <div className="w-8 h-8 border-2 border-bd-accent border-t-transparent rounded-full animate-spin" />
@@ -184,8 +175,12 @@ export default function LeadDetailPage() {
                 <p className="mt-1">{lead.website || '–'}</p>
               </div>
               <div>
-                <span className="text-bd-text-muted">Stadt</span>
-                <p className="mt-1">{lead.city || '–'}</p>
+                <span className="text-bd-text-muted">Adresse</span>
+                <p className="mt-1">{lead.address || '–'}</p>
+              </div>
+              <div>
+                <span className="text-bd-text-muted">PLZ / Stadt</span>
+                <p className="mt-1">{[lead.postal_code, lead.city].filter(Boolean).join(' ') || '–'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Quelle</span>
@@ -245,21 +240,183 @@ export default function LeadDetailPage() {
       {/* Add Activity Modal */}
       <AddActivityModal leadId={id} open={showActivity} onClose={() => setShowActivity(false)} onAdded={fetchLead} />
 
-      {/* Convert Modal */}
-      <Modal open={showConvert} onClose={() => setShowConvert(false)} title="In Kunde umwandeln">
-        <p className="text-sm text-bd-text-body mb-4">
-          Möchtest du <strong>{lead.company_name}</strong> in einen Kunden umwandeln? Der Lead-Status wird auf &quot;Gewonnen&quot; gesetzt.
-        </p>
+      {/* Convert Modal — now with editable form */}
+      <ConvertToCustomerModal
+        lead={lead}
+        users={users || []}
+        open={showConvert}
+        onClose={() => setShowConvert(false)}
+      />
+    </div>
+  );
+}
+
+function ConvertToCustomerModal({ lead, users, open, onClose }: {
+  lead: Lead;
+  users: User[];
+  open: boolean;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    company_name: '',
+    contact_person: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: '',
+    postal_code: '',
+    city: '',
+    assigned_to: '',
+    notes: '',
+  });
+
+  // Pre-fill form when modal opens or lead changes
+  useEffect(() => {
+    if (open && lead) {
+      setForm({
+        company_name: lead.company_name || '',
+        contact_person: lead.contact_person || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        website: lead.website || '',
+        address: lead.address || '',
+        postal_code: lead.postal_code || '',
+        city: lead.city || '',
+        assigned_to: lead.assigned_to || '',
+        notes: lead.notes || '',
+      });
+    }
+  }, [open, lead]);
+
+  const handleConvert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data } = await api.post(`/leads/${lead.id}/convert`, {
+        ...form,
+        assigned_to: form.assigned_to || null,
+      });
+      router.push(`/kunden/${data.id}`);
+    } catch {
+      alert('Fehler bei der Konvertierung');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const emptyBorder = (value: string) => !value.trim() ? 'border-orange-500/50' : '';
+
+  return (
+    <Modal open={open} onClose={onClose} title="In Kunde umwandeln">
+      <p className="text-sm text-bd-text-body mb-4">
+        Prüfe und ergänze die Daten, bevor der Kunde angelegt wird. Der Lead-Status wird auf &quot;Gewonnen&quot; gesetzt.
+      </p>
+      <form onSubmit={handleConvert} className="space-y-4">
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Firmenname *</label>
+          <input
+            required
+            className={`w-full ${emptyBorder(form.company_name)}`}
+            value={form.company_name}
+            onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Kontaktperson</label>
+            <input
+              className={`w-full ${emptyBorder(form.contact_person)}`}
+              value={form.contact_person}
+              onChange={(e) => setForm({ ...form, contact_person: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Telefon</label>
+            <input
+              className={`w-full ${emptyBorder(form.phone)}`}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">E-Mail</label>
+            <input
+              type="email"
+              className={`w-full ${emptyBorder(form.email)}`}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Website</label>
+            <input
+              className={`w-full ${emptyBorder(form.website)}`}
+              value={form.website}
+              onChange={(e) => setForm({ ...form, website: e.target.value })}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Adresse</label>
+          <input
+            className={`w-full ${emptyBorder(form.address)}`}
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">PLZ</label>
+            <input
+              className={`w-full ${emptyBorder(form.postal_code)}`}
+              value={form.postal_code}
+              onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Stadt</label>
+            <input
+              className={`w-full ${emptyBorder(form.city)}`}
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Zugewiesen an</label>
+          <select className="w-full" value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}>
+            <option value="">Nicht zugewiesen</option>
+            {users.filter(u => u.is_active).map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Notizen</label>
+          <textarea rows={2} className="w-full" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowConvert(false)} className="flex-1 px-4 py-2 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors"
+          >
             Abbrechen
           </button>
-          <button onClick={handleConvert} className="flex-1 px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
-            Umwandeln
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
+          >
+            {loading ? 'Wird angelegt...' : 'Kunde anlegen'}
           </button>
         </div>
-      </Modal>
-    </div>
+      </form>
+    </Modal>
   );
 }
 

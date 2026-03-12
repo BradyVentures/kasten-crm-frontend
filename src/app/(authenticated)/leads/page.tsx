@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
-import { Lead, LeadLock, User } from '@/types';
+import { Lead, LeadLock, User, Region } from '@/types';
 import { STATUS_CONFIG, formatRelative } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -17,30 +17,32 @@ const MISSING_FIELD_OPTIONS = [
   { value: 'website', label: 'Keine Website' },
   { value: 'contact_person', label: 'Kein Kontakt' },
   { value: 'city', label: 'Keine Stadt' },
-  { value: 'bundesland', label: 'Kein Bundesland' },
 ];
+
+type SortField = 'company_name' | 'city' | 'updated_at';
 
 export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
-  const [bundeslandFilter, setBundeslandFilter] = useState('');
   const [missingFieldFilter, setMissingFieldFilter] = useState('');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [perPage, setPerPage] = useState(50);
+  const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<SortField>('updated_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Distinct values for filters
-  const [bundeslaender, setBundeslaender] = useState<string[]>([]);
+  // Regions
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [regionCounts, setRegionCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    api.get('/leads/distinct-values').then(r => {
-      setBundeslaender(r.data.bundeslaender || []);
-    }).catch(() => {});
+    api.get('/regions').then(r => setRegions(r.data)).catch(() => {});
   }, []);
 
   const buildQuery = useCallback(() => {
@@ -48,11 +50,22 @@ export default function LeadsPage() {
     if (statusFilter) params.set('status', statusFilter);
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
-    if (bundeslandFilter) params.set('bundesland', bundeslandFilter);
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
+    if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
+    params.set('sort_by', sortBy);
+    params.set('sort_order', sortOrder);
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, bundeslandFilter, missingFieldFilter, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, selectedRegions, sortBy, sortOrder, perPage]);
+
+  const buildFilterQuery = useCallback(() => {
+    const params = new URLSearchParams();
+    if (statusFilter) params.set('status', statusFilter);
+    if (assignedFilter) params.set('assigned_to', assignedFilter);
+    if (search) params.set('search', search);
+    if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
+    return params.toString();
+  }, [statusFilter, assignedFilter, search, missingFieldFilter]);
 
   const { data: leadsData, refetch } = usePolling(
     () => api.get(`/leads?${buildQuery()}`).then((r) => r.data),
@@ -68,6 +81,12 @@ export default function LeadsPage() {
     () => api.get('/users').then((r) => r.data),
     30000
   );
+
+  // Fetch region counts whenever base filters change
+  useEffect(() => {
+    const q = buildFilterQuery();
+    api.get(`/leads/region-counts?${q}`).then(r => setRegionCounts(r.data)).catch(() => {});
+  }, [buildFilterQuery]);
 
   const leads = (leadsData?.leads || []) as Lead[];
   const lockMap = new Map((locks || []).map((l) => [l.lead_id, l]));
@@ -87,11 +106,17 @@ export default function LeadsPage() {
   const toggleOne = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleRegion = (regionId: string) => {
+    setSelectedRegions(prev => {
+      const next = new Set(prev);
+      if (next.has(regionId)) next.delete(regionId);
+      else next.add(regionId);
       return next;
     });
   };
@@ -99,7 +124,7 @@ export default function LeadsPage() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter, assignedFilter, search, bundeslandFilter, missingFieldFilter, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, selectedRegions, perPage]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -109,15 +134,37 @@ export default function LeadsPage() {
       setSelectedIds(new Set());
       setShowDeleteConfirm(false);
       refetch();
-      // Refresh distinct values after delete
-      api.get('/leads/distinct-values').then(r => {
-        setBundeslaender(r.data.bundeslaender || []);
-      }).catch(() => {});
     } catch {
       alert('Fehler beim Löschen');
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder(field === 'updated_at' ? 'desc' : 'asc');
+    }
+  };
+
+  const resetFilters = () => {
+    setStatusFilter('');
+    setAssignedFilter('');
+    setMissingFieldFilter('');
+    setSearch('');
+    setSelectedRegions(new Set());
+  };
+
+  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || search || selectedRegions.size > 0;
+
+  const totalRegionLeads = Object.values(regionCounts).reduce((a, b) => a + b, 0);
+
+  const SortArrow = ({ field }: { field: SortField }) => {
+    if (sortBy !== field) return null;
+    return <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
   };
 
   return (
@@ -140,15 +187,51 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Region Cards */}
+      {regions.length > 0 && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          <button
+            onClick={() => setSelectedRegions(new Set())}
+            className={`shrink-0 px-4 py-2 text-sm rounded-lg border transition-colors ${
+              selectedRegions.size === 0
+                ? 'border-bd-accent text-bd-accent bg-bd-accent-dim'
+                : 'border-bd-border bg-bd-card hover:border-bd-border-accent'
+            }`}
+          >
+            Alle
+            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+              selectedRegions.size === 0 ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
+            }`}>
+              {leadsData?.total || 0}
+            </span>
+          </button>
+          {regions.map((region) => {
+            const isActive = selectedRegions.has(region.id);
+            const count = regionCounts[region.id] || 0;
+            return (
+              <button
+                key={region.id}
+                onClick={() => toggleRegion(region.id)}
+                className={`shrink-0 px-4 py-2 text-sm rounded-lg border transition-colors ${
+                  isActive
+                    ? 'border-bd-accent text-bd-accent bg-bd-accent-dim'
+                    : 'border-bd-border bg-bd-card hover:border-bd-border-accent'
+                }`}
+              >
+                {region.name}
+                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                  isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mb-4">
-        <input
-          type="text"
-          placeholder="Suchen..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-64 col-span-2"
-        />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">Alle Status</option>
           {ALL_STATUSES.map((s) => (
@@ -161,19 +244,28 @@ export default function LeadsPage() {
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
-        <select value={bundeslandFilter} onChange={(e) => setBundeslandFilter(e.target.value)}>
-          <option value="">Alle Bundesländer</option>
-          {bundeslaender.map((b) => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
         <select value={missingFieldFilter} onChange={(e) => setMissingFieldFilter(e.target.value)}>
           <option value="">Fehlende Felder</option>
           {MISSING_FIELD_OPTIONS.map((f) => (
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
-        <select value={perPage} onChange={(e) => setPerPage(parseInt(e.target.value))}>
+        <input
+          type="text"
+          placeholder="Suchen..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full sm:w-64 col-span-2"
+        />
+        {hasActiveFilters && (
+          <button
+            onClick={resetFilters}
+            className="px-4 py-2 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors text-bd-text-secondary"
+          >
+            Filter zurücksetzen
+          </button>
+        )}
+        <select value={perPage} onChange={(e) => setPerPage(parseInt(e.target.value))} className="ml-auto">
           <option value={50}>50 pro Seite</option>
           <option value={100}>100 pro Seite</option>
           <option value={200}>200 pro Seite</option>
@@ -204,7 +296,7 @@ export default function LeadsPage() {
 
       {/* Leads Table */}
       <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+        <table className="w-full min-w-[1000px]">
           <thead>
             <tr className="border-b border-bd-border text-left">
               <th className="px-3 py-3 w-10">
@@ -215,14 +307,30 @@ export default function LeadsPage() {
                   className="rounded border-bd-border cursor-pointer accent-bd-accent"
                 />
               </th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Firma</th>
+              <th
+                className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
+                onClick={() => handleSort('company_name')}
+              >
+                Firma<SortArrow field="company_name" />
+              </th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Website</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Kontakt</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Telefon</th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Stadt</th>
+              <th
+                className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
+                onClick={() => handleSort('city')}
+              >
+                Stadt<SortArrow field="city" />
+              </th>
+              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">PLZ</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Status</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Zugewiesen</th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Aktualisiert</th>
+              <th
+                className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
+                onClick={() => handleSort('updated_at')}
+              >
+                Aktualisiert<SortArrow field="updated_at" />
+              </th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider w-10"></th>
             </tr>
           </thead>
@@ -266,6 +374,7 @@ export default function LeadsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-bd-text-body">{lead.city || '–'}</td>
+                  <td className="px-4 py-3 text-sm text-bd-text-body">{lead.postal_code || '–'}</td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_CONFIG[lead.status].color} bg={STATUS_CONFIG[lead.status].bg}>
                       {STATUS_CONFIG[lead.status].label}
@@ -285,7 +394,7 @@ export default function LeadsPage() {
             })}
             {leads.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-bd-text-muted">
+                <td colSpan={11} className="px-4 py-8 text-center text-bd-text-muted">
                   Keine Leads gefunden.
                 </td>
               </tr>
@@ -333,7 +442,8 @@ function CreateLeadModal({ open, onClose, users, onCreated }: {
   onCreated: () => void;
 }) {
   const [form, setForm] = useState({
-    company_name: '', contact_person: '', email: '', phone: '', website: '', city: '', notes: '',
+    company_name: '', contact_person: '', email: '', phone: '', website: '',
+    address: '', postal_code: '', city: '', assigned_to: '', notes: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -341,10 +451,13 @@ function CreateLeadModal({ open, onClose, users, onCreated }: {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/leads', form);
+      await api.post('/leads', {
+        ...form,
+        assigned_to: form.assigned_to || null,
+      });
       onCreated();
       onClose();
-      setForm({ company_name: '', contact_person: '', email: '', phone: '', website: '', city: '', notes: '' });
+      setForm({ company_name: '', contact_person: '', email: '', phone: '', website: '', address: '', postal_code: '', city: '', assigned_to: '', notes: '' });
     } catch {
       alert('Fehler beim Erstellen');
     } finally {
@@ -375,13 +488,32 @@ function CreateLeadModal({ open, onClose, users, onCreated }: {
             <input type="email" className="w-full" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Website</label>
+            <input className="w-full" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Adresse</label>
+          <input className="w-full" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">PLZ</label>
+            <input className="w-full" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+          </div>
+          <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Stadt</label>
             <input className="w-full" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
           </div>
         </div>
         <div>
-          <label className="block text-sm text-bd-text-secondary mb-1">Website</label>
-          <input className="w-full" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+          <label className="block text-sm text-bd-text-secondary mb-1">Zugewiesen an</label>
+          <select className="w-full" value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}>
+            <option value="">Nicht zugewiesen</option>
+            {users.filter(u => u.is_active).map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Notizen</label>
