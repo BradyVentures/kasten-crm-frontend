@@ -69,7 +69,7 @@ function ServiceKatalog() {
   );
 
   const activeServices = (services || []).filter((s) => s.is_active);
-  const categories = [...new Set(activeServices.map((s) => s.category).filter(Boolean))];
+  const categories = Array.from(new Set(activeServices.map((s) => s.category).filter(Boolean)));
 
   return (
     <div className="space-y-8">
