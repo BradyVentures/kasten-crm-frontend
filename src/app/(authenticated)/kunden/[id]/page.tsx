@@ -47,10 +47,13 @@ export default function KundenDetailPage() {
     .filter((s) => s.price_model === 'monatlich')
     .reduce((sum, s) => sum + Number(s.sold_price), 0);
 
+  const totalCommission = (customer.services || [])
+    .reduce((sum, s) => sum + Number(s.commission_amount || 0), 0);
+
   return (
     <div>
       <button onClick={() => router.push('/kunden')} className="text-sm text-bd-text-muted hover:text-bd-text mb-4 block">
-        ← Zurück zu Kunden
+        &larr; Zur&uuml;ck zu Kunden
       </button>
 
       <div className="flex items-center justify-between mb-6">
@@ -68,27 +71,27 @@ export default function KundenDetailPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-bd-text-muted">Kontaktperson</span>
-                <p className="mt-1">{customer.contact_person || '–'}</p>
+                <p className="mt-1">{customer.contact_person || '\u2013'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">E-Mail</span>
-                <p className="mt-1">{customer.email || '–'}</p>
+                <p className="mt-1">{customer.email || '\u2013'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Telefon</span>
-                <p className="mt-1">{customer.phone || '–'}</p>
+                <p className="mt-1">{customer.phone || '\u2013'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Website</span>
-                <p className="mt-1">{customer.website || '–'}</p>
+                <p className="mt-1">{customer.website || '\u2013'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Stadt</span>
-                <p className="mt-1">{customer.city || '–'}</p>
+                <p className="mt-1">{customer.city || '\u2013'}</p>
               </div>
               <div>
-                <span className="text-bd-text-muted">Konvertiert am</span>
-                <p className="mt-1">{formatDate(customer.converted_at)}</p>
+                <span className="text-bd-text-muted">Kunde seit</span>
+                <p className="mt-1">{formatDate(customer.converted_at || customer.created_at)}</p>
               </div>
             </div>
           </div>
@@ -110,14 +113,20 @@ export default function KundenDetailPage() {
                         <Badge color="text-bd-text-secondary" bg="bg-bd-bg-secondary">
                           {s.price_model === 'monatlich' ? 'Monatlich' : 'Einmalig'}
                         </Badge>
+                        {s.price_model === 'monatlich' && s.contract_months && (
+                          <Badge color="text-orange-400" bg="bg-orange-400/10">
+                            {s.contract_months} Monate
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="font-semibold">{formatCurrency(Number(s.sold_price))}</span>
+                        <span className="font-semibold">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
                         {Number(s.commission_rate) > 0 && (
                           <p className="text-xs text-bd-text-muted">
-                            Prov: {formatCurrency(Number(s.commission_amount))} ({Number(s.commission_rate)}%)
+                            Prov: {formatCurrency(Number(s.commission_amount))} ({Number(s.commission_rate)}%
+                            {s.price_model === 'monatlich' && s.contract_months ? ` \u00d7 ${s.contract_months} Mo` : ''})
                           </p>
                         )}
                       </div>
@@ -137,7 +146,7 @@ export default function KundenDetailPage() {
         {/* Revenue Summary */}
         <div className="space-y-4">
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
-            <h2 className="font-heading font-semibold mb-3">Umsatz-Übersicht</h2>
+            <h2 className="font-heading font-semibold mb-3">Umsatz-\u00dcbersicht</h2>
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-bd-text-secondary">Einmalig</p>
@@ -152,6 +161,12 @@ export default function KundenDetailPage() {
                 <p className="text-2xl font-bold">{formatCurrency(totalEinmalig + totalMonatlich)}</p>
               </div>
             </div>
+          </div>
+
+          <div className="bg-bd-card rounded-bd p-5 border border-bd-accent/30">
+            <h2 className="font-heading font-semibold mb-3">Provision</h2>
+            <p className="text-2xl font-bold text-bd-accent">{formatCurrency(totalCommission)}</p>
+            <p className="text-xs text-bd-text-muted mt-1">Gesamte Verkaufsprovision</p>
           </div>
         </div>
       </div>
@@ -178,6 +193,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
   const [serviceId, setServiceId] = useState('');
   const [soldPrice, setSoldPrice] = useState('');
   const [priceModel, setPriceModel] = useState('einmalig');
+  const [contractMonths, setContractMonths] = useState('12');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -192,6 +208,15 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
     }
   };
 
+  // Live commission preview
+  const soldPriceNum = parseFloat(soldPrice) || 0;
+  const contractMonthsNum = parseInt(contractMonths) || 0;
+  const commissionRate = selectedService?.commission_rate || 0;
+  const commissionBase = priceModel === 'monatlich'
+    ? soldPriceNum * contractMonthsNum
+    : soldPriceNum;
+  const commissionPreview = commissionBase * commissionRate / 100;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -200,12 +225,14 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         service_id: serviceId,
         sold_price: parseFloat(soldPrice),
         price_model: priceModel,
+        contract_months: priceModel === 'monatlich' ? parseInt(contractMonths) : undefined,
         notes: notes || undefined,
       });
       onAssigned();
       onClose();
       setServiceId('');
       setSoldPrice('');
+      setContractMonths('12');
       setNotes('');
     } catch {
       alert('Fehler');
@@ -220,7 +247,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Service *</label>
           <select required className="w-full" value={serviceId} onChange={(e) => handleServiceSelect(e.target.value)}>
-            <option value="">Service auswählen...</option>
+            <option value="">Service ausw\u00e4hlen...</option>
             {services.filter((s) => s.is_active).map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name} ({formatCurrency(s.base_price)} / {s.price_model})
@@ -230,7 +257,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (€) *</label>
+            <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (\u20ac) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} />
           </div>
           <div>
@@ -241,10 +268,48 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
             </select>
           </div>
         </div>
+
+        {priceModel === 'monatlich' && (
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Vertragslaufzeit (Monate) *</label>
+            <input
+              required
+              type="number"
+              min="1"
+              step="1"
+              className="w-full"
+              value={contractMonths}
+              onChange={(e) => setContractMonths(e.target.value)}
+            />
+            <p className="text-xs text-bd-text-muted mt-1">
+              Vertragswert: {formatCurrency(soldPriceNum * contractMonthsNum)}
+            </p>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Notizen</label>
           <textarea rows={2} className="w-full" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
+
+        {/* Commission Preview */}
+        {selectedService && commissionRate > 0 && (
+          <div className="bg-bd-bg-secondary rounded-lg p-3 border border-bd-border">
+            <p className="text-xs text-bd-text-muted mb-1">Provisionsvorschau</p>
+            <div className="flex justify-between items-center">
+              <span className="text-sm">
+                {commissionRate}% auf {formatCurrency(commissionBase)}
+              </span>
+              <span className="font-semibold text-bd-accent">{formatCurrency(commissionPreview)}</span>
+            </div>
+            {priceModel === 'monatlich' && (
+              <p className="text-xs text-bd-text-muted mt-1">
+                {formatCurrency(soldPriceNum)}/Mo \u00d7 {contractMonthsNum} Mo \u00d7 {commissionRate}%
+              </p>
+            )}
+          </div>
+        )}
+
         <button type="submit" disabled={loading || !serviceId} className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all">
           {loading ? 'Zuweisen...' : 'Service zuweisen'}
         </button>

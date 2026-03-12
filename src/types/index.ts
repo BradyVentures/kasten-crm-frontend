@@ -48,20 +48,26 @@ export interface Customer {
   notes: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
-  converted_at: string;
+  converted_at: string | null;
   converted_by: string | null;
+  created_at: string;
   total_revenue: number;
   service_count: number;
   services?: CustomerServiceItem[];
 }
 
+export type ServiceCategory = 'Web-Services' | 'Sichtbarkeit & Marketing' | 'KI-Workflows' | 'Analytics';
+
 export interface Service {
   id: string;
   name: string;
+  short_description: string | null;
   description: string | null;
+  includes: string | null;
   base_price: number;
   price_model: string;
   type: ServiceType;
+  category: ServiceCategory | null;
   is_active: boolean;
   sort_order: number;
   commission_rate: number;
@@ -75,6 +81,7 @@ export interface CustomerServiceItem {
   service_type: ServiceType;
   sold_price: number;
   price_model: string;
+  contract_months: number | null;
   sold_date: string;
   sold_by: string | null;
   sold_by_name: string | null;
@@ -116,6 +123,7 @@ export interface CommissionDetail {
   sold_price: number;
   sold_date: string;
   price_model: string;
+  contract_months: number | null;
   service_name: string;
   commission_rate: number;
   commission_amount: number;

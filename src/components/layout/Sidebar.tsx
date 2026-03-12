@@ -10,7 +10,7 @@ const navItems = [
   { href: '/leads', label: 'Leads', icon: '◎' },
   { href: '/kunden', label: 'Kunden', icon: '◈' },
   { href: '/provisionen', label: 'Provisionen', icon: '◆' },
-  { href: '/dokumente', label: 'Dokumente', icon: '◫' },
+  { href: '/info-center', label: 'Info Center', icon: '◫' },
 ];
 
 const adminItems = [
