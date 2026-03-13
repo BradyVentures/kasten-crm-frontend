@@ -19,14 +19,6 @@ const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: strin
   unbekannt: { label: 'Unbekannt', color: 'text-bd-text-muted', bg: 'bg-bd-bg-secondary' },
 };
 
-const MISSING_FIELD_OPTIONS = [
-  { value: 'phone', label: 'Kein Telefon' },
-  { value: 'email', label: 'Keine E-Mail' },
-  { value: 'website', label: 'Keine Website' },
-  { value: 'contact_person', label: 'Kein Kontakt' },
-  { value: 'city', label: 'Keine Stadt' },
-];
-
 type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at';
 
 // Read URL params on mount to restore filter state after navigation
@@ -38,7 +30,6 @@ function getUrlParam(key: string, fallback = ''): string {
 export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState(() => getUrlParam('status'));
   const [assignedFilter, setAssignedFilter] = useState(() => getUrlParam('assigned_to'));
-  const [missingFieldFilter, setMissingFieldFilter] = useState(() => getUrlParam('missing_field'));
   const [brancheFilter, setBrancheFilter] = useState(() => getUrlParam('branche'));
   const [websiteStatusFilter, setWebsiteStatusFilter] = useState(() => getUrlParam('website_status'));
   const [phoneFilter, setPhoneFilter] = useState(() => getUrlParam('phone_filter'));
@@ -57,7 +48,6 @@ export default function LeadsPage() {
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
     if (assignedFilter) params.set('assigned_to', assignedFilter);
-    if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
     if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
     if (phoneFilter) params.set('phone_filter', phoneFilter);
@@ -69,7 +59,7 @@ export default function LeadsPage() {
     const query = params.toString();
     const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
     window.history.replaceState({}, '', newUrl);
-  }, [statusFilter, assignedFilter, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, brancheFilter, websiteStatusFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
 
   // Distinct values for filters
   const [branchen, setBranchen] = useState<string[]>([]);
@@ -93,7 +83,6 @@ export default function LeadsPage() {
     if (statusFilter) params.set('status', statusFilter);
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
-    if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
     if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
     if (phoneFilter) params.set('phone_filter', phoneFilter);
@@ -102,19 +91,18 @@ export default function LeadsPage() {
     params.set('sort_order', sortOrder);
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, sortBy, sortOrder, perPage]);
 
   const buildFilterQuery = useCallback(() => {
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
-    if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
     if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
     if (phoneFilter) params.set('phone_filter', phoneFilter);
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteStatusFilter, phoneFilter]);
 
   const { data: leadsData, refetch } = usePolling(
     () => api.get(`/leads?${buildQuery()}`).then((r) => r.data),
@@ -177,7 +165,7 @@ export default function LeadsPage() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, perPage]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, perPage]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -207,7 +195,6 @@ export default function LeadsPage() {
   const resetFilters = () => {
     setStatusFilter('');
     setAssignedFilter('');
-    setMissingFieldFilter('');
     setBrancheFilter('');
     setWebsiteStatusFilter('');
     setPhoneFilter('');
@@ -215,7 +202,7 @@ export default function LeadsPage() {
     setSelectedRegions(new Set());
   };
 
-  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || websiteStatusFilter || phoneFilter || search || selectedRegions.size > 0;
+  const hasActiveFilters = statusFilter || assignedFilter || brancheFilter || websiteStatusFilter || phoneFilter || search || selectedRegions.size > 0;
 
   const SortableTh = ({ field, children, onClick, sortBy: sb, sortOrder: so }: {
     field: SortField;
@@ -258,12 +245,6 @@ export default function LeadsPage() {
           <option value="">Alle Mitarbeiter</option>
           {(users || []).map((u) => (
             <option key={u.id} value={u.id}>{u.name}</option>
-          ))}
-        </select>
-        <select value={missingFieldFilter} onChange={(e) => setMissingFieldFilter(e.target.value)}>
-          <option value="">Fehlende Felder</option>
-          {MISSING_FIELD_OPTIONS.map((f) => (
-            <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
         {regions.length > 0 && (
