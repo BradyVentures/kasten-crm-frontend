@@ -4,12 +4,20 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
-import { Lead, LeadLock, User, Region } from '@/types';
+import { Lead, LeadLock, User, Region, WebsiteStatus } from '@/types';
 import { STATUS_CONFIG, formatRelative } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
 const ALL_STATUSES = ['neu', 'kontaktiert', 'qualifiziert', 'angebot', 'gewonnen', 'verloren'] as const;
+
+const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: string; bg: string }> = {
+  keine: { label: 'Keine', color: 'text-red-400', bg: 'bg-red-500/15' },
+  veraltet: { label: 'Veraltet', color: 'text-orange-400', bg: 'bg-orange-500/15' },
+  einfach: { label: 'Einfach', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
+  ok: { label: 'OK', color: 'text-green-400', bg: 'bg-green-500/15' },
+  unbekannt: { label: 'Unbekannt', color: 'text-bd-text-muted', bg: 'bg-bd-bg-secondary' },
+};
 
 const MISSING_FIELD_OPTIONS = [
   { value: 'phone', label: 'Kein Telefon' },
@@ -297,7 +305,7 @@ export default function LeadsPage() {
               >
                 Firma<SortArrow field="company_name" />
               </th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Website</th>
+              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Web-Status</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Kontakt</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Telefon</th>
               <th
@@ -342,10 +350,13 @@ export default function LeadsPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {lead.website ? (
-                      <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-bd-accent hover:brightness-110 transition-colors truncate block max-w-[180px]">
-                        {lead.website.replace(/^https?:\/\/(www\.)?/, '')}
-                      </a>
+                    {lead.website_status ? (
+                      <Badge
+                        color={WEBSITE_STATUS_CONFIG[lead.website_status].color}
+                        bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}
+                      >
+                        {WEBSITE_STATUS_CONFIG[lead.website_status].label}
+                      </Badge>
                     ) : (
                       <span className="text-bd-text-muted">–</span>
                     )}
