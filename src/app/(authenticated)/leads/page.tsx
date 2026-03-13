@@ -61,6 +61,26 @@ export default function LeadsPage() {
     window.history.replaceState({}, '', newUrl);
   }, [statusFilter, assignedFilter, brancheFilter, websiteStatusFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
 
+  // Restore filters from URL on back/forward browser navigation
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setStatusFilter(params.get('status') || '');
+      setAssignedFilter(params.get('assigned_to') || '');
+      setBrancheFilter(params.get('branche') || '');
+      setWebsiteStatusFilter(params.get('website_status') || '');
+      setPhoneFilter(params.get('phone_filter') || '');
+      setSearch(params.get('search') || '');
+      const r = params.get('regions');
+      setSelectedRegions(r ? new Set(r.split(',')) : new Set());
+      setSortBy((params.get('sort_by') as SortField) || 'updated_at');
+      setSortOrder((params.get('sort_order') as 'asc' | 'desc') || 'desc');
+      setPerPage(parseInt(params.get('per_page') || '50') || 50);
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
   // Distinct values for filters
   const [branchen, setBranchen] = useState<string[]>([]);
 
