@@ -180,7 +180,18 @@ export default function LeadDetailPage() {
               </div>
               <div>
                 <span className="text-bd-text-muted">Website</span>
-                <p className="mt-1">{lead.website || '–'}</p>
+                <p className="mt-1">
+                  {lead.website ? (
+                    <a
+                      href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-bd-accent hover:underline"
+                    >
+                      {lead.website}
+                    </a>
+                  ) : '–'}
+                </p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Adresse</span>
