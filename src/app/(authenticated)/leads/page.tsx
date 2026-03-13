@@ -29,19 +29,47 @@ const MISSING_FIELD_OPTIONS = [
 
 type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at';
 
+// Read URL params on mount to restore filter state after navigation
+function getUrlParam(key: string, fallback = ''): string {
+  if (typeof window === 'undefined') return fallback;
+  return new URLSearchParams(window.location.search).get(key) || fallback;
+}
+
 export default function LeadsPage() {
-  const [statusFilter, setStatusFilter] = useState('');
-  const [assignedFilter, setAssignedFilter] = useState('');
-  const [missingFieldFilter, setMissingFieldFilter] = useState('');
-  const [brancheFilter, setBrancheFilter] = useState('');
-  const [websiteStatusFilter, setWebsiteStatusFilter] = useState('');
-  const [phoneFilter, setPhoneFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState(() => getUrlParam('status'));
+  const [assignedFilter, setAssignedFilter] = useState(() => getUrlParam('assigned_to'));
+  const [missingFieldFilter, setMissingFieldFilter] = useState(() => getUrlParam('missing_field'));
+  const [brancheFilter, setBrancheFilter] = useState(() => getUrlParam('branche'));
+  const [websiteStatusFilter, setWebsiteStatusFilter] = useState(() => getUrlParam('website_status'));
+  const [phoneFilter, setPhoneFilter] = useState(() => getUrlParam('phone_filter'));
+  const [search, setSearch] = useState(() => getUrlParam('search'));
   const [showCreate, setShowCreate] = useState(false);
-  const [perPage, setPerPage] = useState(50);
-  const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<SortField>('updated_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [perPage, setPerPage] = useState(() => parseInt(getUrlParam('per_page', '50')) || 50);
+  const [selectedRegions, setSelectedRegions] = useState<Set<string>>(() => {
+    const r = getUrlParam('regions');
+    return r ? new Set(r.split(',')) : new Set();
+  });
+  const [sortBy, setSortBy] = useState<SortField>(() => (getUrlParam('sort_by', 'updated_at') as SortField) || 'updated_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (getUrlParam('sort_order', 'desc') as 'asc' | 'desc') || 'desc');
+
+  // Sync filter state to URL so back-navigation restores filters
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (statusFilter) params.set('status', statusFilter);
+    if (assignedFilter) params.set('assigned_to', assignedFilter);
+    if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
+    if (brancheFilter) params.set('branche', brancheFilter);
+    if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
+    if (phoneFilter) params.set('phone_filter', phoneFilter);
+    if (search) params.set('search', search);
+    if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
+    if (sortBy !== 'updated_at') params.set('sort_by', sortBy);
+    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
+    if (perPage !== 50) params.set('per_page', perPage.toString());
+    const query = params.toString();
+    const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [statusFilter, assignedFilter, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
 
   // Distinct values for filters
   const [branchen, setBranchen] = useState<string[]>([]);
