@@ -27,7 +27,7 @@ const MISSING_FIELD_OPTIONS = [
   { value: 'city', label: 'Keine Stadt' },
 ];
 
-type SortField = 'company_name' | 'contact_person' | 'phone' | 'city' | 'postal_code' | 'updated_at';
+type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at';
 
 export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -35,6 +35,7 @@ export default function LeadsPage() {
   const [missingFieldFilter, setMissingFieldFilter] = useState('');
   const [brancheFilter, setBrancheFilter] = useState('');
   const [websiteStatusFilter, setWebsiteStatusFilter] = useState('');
+  const [phoneFilter, setPhoneFilter] = useState('');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [perPage, setPerPage] = useState(50);
@@ -67,12 +68,13 @@ export default function LeadsPage() {
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
     if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
+    if (phoneFilter) params.set('phone_filter', phoneFilter);
     if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
     params.set('sort_by', sortBy);
     params.set('sort_order', sortOrder);
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, sortBy, sortOrder, perPage]);
 
   const buildFilterQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -82,8 +84,9 @@ export default function LeadsPage() {
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
     if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
+    if (phoneFilter) params.set('phone_filter', phoneFilter);
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter]);
 
   const { data: leadsData, refetch } = usePolling(
     () => api.get(`/leads?${buildQuery()}`).then((r) => r.data),
@@ -146,7 +149,7 @@ export default function LeadsPage() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, selectedRegions, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, perPage]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -179,11 +182,12 @@ export default function LeadsPage() {
     setMissingFieldFilter('');
     setBrancheFilter('');
     setWebsiteStatusFilter('');
+    setPhoneFilter('');
     setSearch('');
     setSelectedRegions(new Set());
   };
 
-  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || websiteStatusFilter || search || selectedRegions.size > 0;
+  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || websiteStatusFilter || phoneFilter || search || selectedRegions.size > 0;
 
   const SortableTh = ({ field, children, onClick, sortBy: sb, sortOrder: so }: {
     field: SortField;
@@ -305,6 +309,7 @@ export default function LeadsPage() {
                 label="Web-Status"
                 value={websiteStatusFilter}
                 onChange={setWebsiteStatusFilter}
+                multi
                 options={[
                   { value: 'keine', label: 'Keine', color: 'text-red-400' },
                   { value: 'veraltet', label: 'Veraltet', color: 'text-orange-400' },
@@ -314,7 +319,15 @@ export default function LeadsPage() {
                 ]}
               />
               <SortableTh field="contact_person" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Kontakt</SortableTh>
-              <SortableTh field="phone" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Telefon</SortableTh>
+              <ColumnFilterTh
+                label="Telefon"
+                value={phoneFilter}
+                onChange={setPhoneFilter}
+                options={[
+                  { value: 'vorhanden', label: 'Vorhanden', color: 'text-green-400' },
+                  { value: 'keine', label: 'Keine', color: 'text-red-400' },
+                ]}
+              />
               <SortableTh field="city" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Stadt</SortableTh>
               <SortableTh field="postal_code" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>PLZ</SortableTh>
               <ColumnFilterTh
@@ -703,11 +716,12 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggleGroup,
   );
 }
 
-function ColumnFilterTh({ label, value, onChange, options }: {
+function ColumnFilterTh({ label, value, onChange, options, multi = false }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string; color?: string }[];
+  multi?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLTableCellElement>(null);
@@ -723,6 +737,22 @@ function ColumnFilterTh({ label, value, onChange, options }: {
   }, [open]);
 
   const isActive = value !== '';
+  const selectedSet = new Set(value ? value.split(',') : []);
+
+  const handleSelect = (optValue: string) => {
+    if (multi) {
+      const next = new Set(selectedSet);
+      if (next.has(optValue)) {
+        next.delete(optValue);
+      } else {
+        next.add(optValue);
+      }
+      onChange(Array.from(next).join(','));
+    } else {
+      onChange(selectedSet.has(optValue) ? '' : optValue);
+      setOpen(false);
+    }
+  };
 
   return (
     <th ref={ref} className="px-4 py-3 text-xs font-medium uppercase tracking-wider relative">
@@ -735,6 +765,7 @@ function ColumnFilterTh({ label, value, onChange, options }: {
       >
         {label}
         {isActive && <span className="text-[9px] ml-0.5">&#x25CF;</span>}
+        {multi && selectedSet.size > 1 && <span className="text-[9px] ml-0.5">{selectedSet.size}</span>}
         <svg className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -744,7 +775,7 @@ function ColumnFilterTh({ label, value, onChange, options }: {
         <div className="absolute z-50 mt-1 left-0 w-52 max-h-72 overflow-auto bg-bd-card border border-bd-border rounded-lg shadow-xl">
           {/* All option */}
           <button
-            onClick={() => { onChange(''); setOpen(false); }}
+            onClick={() => { onChange(''); if (!multi) setOpen(false); }}
             className={`w-full text-left px-3 py-2 text-xs transition-colors ${
               !value ? 'bg-bd-accent-dim text-bd-accent font-semibold' : 'hover:bg-bd-card-hover text-bd-text-body'
             }`}
@@ -753,11 +784,11 @@ function ColumnFilterTh({ label, value, onChange, options }: {
           </button>
           <div className="border-t border-bd-border" />
           {options.map((opt) => {
-            const selected = value === opt.value;
+            const selected = selectedSet.has(opt.value);
             return (
               <button
                 key={opt.value}
-                onClick={() => { onChange(selected ? '' : opt.value); setOpen(false); }}
+                onClick={() => handleSelect(opt.value)}
                 className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
                   selected ? 'bg-bd-accent-dim text-bd-accent font-semibold' : 'hover:bg-bd-card-hover text-bd-text-body'
                 }`}
