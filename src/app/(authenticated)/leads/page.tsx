@@ -27,7 +27,7 @@ const MISSING_FIELD_OPTIONS = [
   { value: 'city', label: 'Keine Stadt' },
 ];
 
-type SortField = 'company_name' | 'city' | 'updated_at';
+type SortField = 'company_name' | 'website_status' | 'contact_person' | 'phone' | 'city' | 'postal_code' | 'branche' | 'status' | 'updated_at';
 
 export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -165,6 +165,7 @@ export default function LeadsPage() {
       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(field);
+      // updated_at defaults to descending (newest first), everything else ascending (A-Z)
       setSortOrder(field === 'updated_at' ? 'desc' : 'asc');
     }
   };
@@ -180,10 +181,20 @@ export default function LeadsPage() {
 
   const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || search || selectedRegions.size > 0;
 
-  const SortArrow = ({ field }: { field: SortField }) => {
-    if (sortBy !== field) return null;
-    return <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
-  };
+  const SortableTh = ({ field, children, onClick, sortBy: sb, sortOrder: so }: {
+    field: SortField;
+    children: React.ReactNode;
+    onClick: (field: SortField) => void;
+    sortBy: SortField;
+    sortOrder: 'asc' | 'desc';
+  }) => (
+    <th
+      className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
+      onClick={() => onClick(field)}
+    >
+      {children}{sb === field && <span className="ml-1">{so === 'asc' ? '↑' : '↓'}</span>}
+    </th>
+  );
 
   return (
     <div>
@@ -299,31 +310,16 @@ export default function LeadsPage() {
                   className="rounded border-bd-border cursor-pointer accent-bd-accent"
                 />
               </th>
-              <th
-                className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
-                onClick={() => handleSort('company_name')}
-              >
-                Firma<SortArrow field="company_name" />
-              </th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Web-Status</th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Kontakt</th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Telefon</th>
-              <th
-                className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
-                onClick={() => handleSort('city')}
-              >
-                Stadt<SortArrow field="city" />
-              </th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">PLZ</th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Branche</th>
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Status</th>
+              <SortableTh field="company_name" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Firma</SortableTh>
+              <SortableTh field="website_status" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Web-Status</SortableTh>
+              <SortableTh field="contact_person" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Kontakt</SortableTh>
+              <SortableTh field="phone" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Telefon</SortableTh>
+              <SortableTh field="city" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Stadt</SortableTh>
+              <SortableTh field="postal_code" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>PLZ</SortableTh>
+              <SortableTh field="branche" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Branche</SortableTh>
+              <SortableTh field="status" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Status</SortableTh>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Zugewiesen</th>
-              <th
-                className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
-                onClick={() => handleSort('updated_at')}
-              >
-                Aktualisiert<SortArrow field="updated_at" />
-              </th>
+              <SortableTh field="updated_at" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Aktualisiert</SortableTh>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider w-10"></th>
             </tr>
           </thead>
