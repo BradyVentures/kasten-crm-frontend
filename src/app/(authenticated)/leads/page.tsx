@@ -499,6 +499,7 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [expandedLk, setExpandedLk] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on click outside
@@ -526,6 +527,19 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
       bl[lk].sort((a, b) => a.plzFrom.localeCompare(b.plzFrom));
     }
   }
+
+  const toggleLk = (lk: string) => {
+    setExpandedLk(prev => {
+      const next = new Set(prev);
+      if (next.has(lk)) next.delete(lk);
+      else next.add(lk);
+      return next;
+    });
+  };
+
+  // Count selected regions within a landkreis
+  const lkSelectedCount = (regs: Region[]) => regs.filter(r => selectedRegions.has(r.id)).length;
+  const lkTotalCount = (regs: Region[]) => regs.reduce((sum, r) => sum + (regionCounts[r.id] || 0), 0);
 
   const count = selectedRegions.size;
   const label = count === 0 ? 'Regionen' : count === 1
@@ -563,48 +577,69 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
 
           {Object.entries(grouped).map(([bundesland, landkreise]) => (
             <div key={bundesland}>
-              {/* Bundesland header */}
-              <div className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-bd-text-muted">
-                {bundesland}
-              </div>
+              {Object.entries(landkreise).map(([landkreis, regs]) => {
+                const isExpanded = expandedLk.has(landkreis);
+                const selCount = lkSelectedCount(regs);
+                const totalLeads = lkTotalCount(regs);
 
-              {Object.entries(landkreise).map(([landkreis, regs]) => (
-                <div key={landkreis}>
-                  {/* Landkreis header */}
-                  <div className="px-4 pt-2 pb-1 text-xs font-semibold text-bd-text-secondary">
-                    {landkreis}
-                  </div>
-
-                  {regs.map((region) => {
-                    const isActive = selectedRegions.has(region.id);
-                    const rCount = regionCounts[region.id] || 0;
-                    return (
-                      <button
-                        key={region.id}
-                        onClick={() => onToggle(region.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-1.5 text-sm transition-colors ${
-                          isActive ? 'bg-bd-accent-dim text-bd-accent' : 'hover:bg-bd-card-hover text-bd-text-body'
-                        }`}
+                return (
+                  <div key={landkreis}>
+                    {/* Landkreis row — clickable to expand/collapse */}
+                    <button
+                      onClick={() => toggleLk(landkreis)}
+                      className="w-full flex items-center gap-2 px-4 py-2 hover:bg-bd-card-hover transition-colors"
+                    >
+                      <svg
+                        className={`w-3 h-3 shrink-0 text-bd-text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
                       >
-                        <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
-                          isActive ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
-                        }`}>
-                          {isActive && '\u2713'}
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="flex-1 text-left text-xs font-semibold text-bd-text-secondary">
+                        {landkreis}
+                      </span>
+                      {selCount > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bd-accent/20 text-bd-accent">
+                          {selCount} aktiv
                         </span>
-                        <span className="flex-1 text-left truncate">
-                          <span className="text-bd-text-muted text-xs mr-1.5">{region.plzFrom}–{region.plzTo}</span>
-                          {region.name}
-                        </span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                          isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
-                        }`}>
-                          {rCount}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+                      )}
+                      <span className="text-[10px] text-bd-text-muted">
+                        {totalLeads}
+                      </span>
+                    </button>
+
+                    {/* Region items — only visible when expanded */}
+                    {isExpanded && regs.map((region) => {
+                      const isActive = selectedRegions.has(region.id);
+                      const rCount = regionCounts[region.id] || 0;
+                      return (
+                        <button
+                          key={region.id}
+                          onClick={() => onToggle(region.id)}
+                          className={`w-full flex items-center gap-3 pl-9 pr-4 py-1.5 text-sm transition-colors ${
+                            isActive ? 'bg-bd-accent-dim text-bd-accent' : 'hover:bg-bd-card-hover text-bd-text-body'
+                          }`}
+                        >
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
+                            isActive ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
+                          }`}>
+                            {isActive && '\u2713'}
+                          </span>
+                          <span className="flex-1 text-left truncate">
+                            <span className="text-bd-text-muted text-xs mr-1.5">{region.plzFrom}–{region.plzTo}</span>
+                            {region.name}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                            isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
+                          }`}>
+                            {rCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           ))}
 
