@@ -110,7 +110,7 @@ export default function LeadDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <button onClick={() => router.push('/leads')} className="text-sm text-bd-text-muted hover:text-bd-text mb-2 block">
+          <button onClick={() => router.back()} className="text-sm text-bd-text-muted hover:text-bd-text mb-2 block">
             ← Zurück zu Leads
           </button>
           <h1 className="font-heading text-2xl font-bold">{lead.company_name}</h1>
