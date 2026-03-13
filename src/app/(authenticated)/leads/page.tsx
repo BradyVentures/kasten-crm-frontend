@@ -112,11 +112,15 @@ export default function LeadsPage() {
     });
   };
 
-  const toggleRegion = (regionId: string) => {
+  const toggleRegionGroup = (regionIds: string[]) => {
     setSelectedRegions(prev => {
       const next = new Set(prev);
-      if (next.has(regionId)) next.delete(regionId);
-      else next.add(regionId);
+      const allSelected = regionIds.every(id => next.has(id));
+      if (allSelected) {
+        regionIds.forEach(id => next.delete(id));
+      } else {
+        regionIds.forEach(id => next.add(id));
+      }
       return next;
     });
   };
@@ -210,7 +214,7 @@ export default function LeadsPage() {
             regions={regions}
             regionCounts={regionCounts}
             selectedRegions={selectedRegions}
-            onToggle={toggleRegion}
+            onToggleGroup={toggleRegionGroup}
             onClear={() => setSelectedRegions(new Set())}
           />
         )}
@@ -491,16 +495,15 @@ function CreateLeadModal({ open, onClose, users, onCreated }: {
   );
 }
 
-function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onClear }: {
+function RegionDropdown({ regions, regionCounts, selectedRegions, onToggleGroup, onClear }: {
   regions: Region[];
   regionCounts: Record<string, number>;
   selectedRegions: Set<string>;
-  onToggle: (id: string) => void;
+  onToggleGroup: (ids: string[]) => void;
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [expandedBl, setExpandedBl] = useState<Set<string>>(new Set());
-  const [expandedLk, setExpandedLk] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on click outside
@@ -522,13 +525,6 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
     return acc;
   }, {});
 
-  // Sort regions within each landkreis by plzFrom
-  for (const bl of Object.values(grouped)) {
-    for (const lk of Object.keys(bl)) {
-      bl[lk].sort((a, b) => a.plzFrom.localeCompare(b.plzFrom));
-    }
-  }
-
   const toggleBl = (bl: string) => {
     setExpandedBl(prev => {
       const next = new Set(prev);
@@ -538,28 +534,30 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
     });
   };
 
-  const toggleLk = (lk: string) => {
-    setExpandedLk(prev => {
-      const next = new Set(prev);
-      if (next.has(lk)) next.delete(lk);
-      else next.add(lk);
-      return next;
-    });
-  };
-
-  // Aggregate helpers
-  const regsSelectedCount = (regs: Region[]) => regs.filter(r => selectedRegions.has(r.id)).length;
-  const regsTotalLeads = (regs: Region[]) => regs.reduce((sum, r) => sum + (regionCounts[r.id] || 0), 0);
+  // Helpers
+  const lkRegionIds = (regs: Region[]) => regs.map(r => r.id);
+  const lkIsSelected = (regs: Region[]) => regs.every(r => selectedRegions.has(r.id));
+  const lkLeads = (regs: Region[]) => regs.reduce((sum, r) => sum + (regionCounts[r.id] || 0), 0);
 
   const blSelectedCount = (landkreise: Record<string, Region[]>) =>
-    Object.values(landkreise).reduce((sum, regs) => sum + regsSelectedCount(regs), 0);
+    Object.values(landkreise).filter(regs => lkIsSelected(regs)).length;
   const blTotalLeads = (landkreise: Record<string, Region[]>) =>
-    Object.values(landkreise).reduce((sum, regs) => sum + regsTotalLeads(regs), 0);
+    Object.values(landkreise).reduce((sum, regs) => sum + lkLeads(regs), 0);
 
-  const count = selectedRegions.size;
-  const label = count === 0 ? 'Regionen' : count === 1
-    ? regions.find(r => selectedRegions.has(r.id))?.name || '1 Region'
-    : `${count} Regionen`;
+  // Count selected Landkreise (not individual regions)
+  const selectedLkCount = Object.values(grouped).reduce((sum, lks) => sum + blSelectedCount(lks), 0);
+
+  // Label for the dropdown button
+  const label = selectedLkCount === 0 ? 'Regionen' : selectedLkCount === 1
+    ? (() => {
+        for (const lks of Object.values(grouped)) {
+          for (const [lkName, regs] of Object.entries(lks)) {
+            if (lkIsSelected(regs)) return lkName;
+          }
+        }
+        return '1 Region';
+      })()
+    : `${selectedLkCount} Landkreise`;
 
   const Chevron = ({ expanded, className }: { expanded: boolean; className?: string }) => (
     <svg
@@ -576,12 +574,12 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
         type="button"
         onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
-          count > 0
+          selectedLkCount > 0
             ? 'border-bd-accent text-bd-accent bg-bd-accent-dim'
             : 'border-bd-border bg-bd-card hover:border-bd-border-accent text-bd-text-body'
         }`}
       >
-        <span className="truncate max-w-[180px]">{label}</span>
+        <span className="truncate max-w-[200px]">{label}</span>
         <svg className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -590,7 +588,7 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
       {open && (
         <div className="absolute z-50 mt-1 left-0 w-80 max-h-80 overflow-auto bg-bd-card border border-bd-border rounded-lg shadow-xl">
           {/* Clear button */}
-          {count > 0 && (
+          {selectedLkCount > 0 && (
             <button
               onClick={() => { onClear(); setOpen(false); }}
               className="w-full text-left px-4 py-2 text-xs text-bd-text-muted hover:bg-bd-card-hover border-b border-bd-border transition-colors"
@@ -625,59 +623,31 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
 
                 {/* Landkreise — visible when bundesland expanded */}
                 {blExpanded && Object.entries(landkreise).map(([landkreis, regs]) => {
-                  const lkExpanded = expandedLk.has(landkreis);
-                  const lkSel = regsSelectedCount(regs);
-                  const lkLeads = regsTotalLeads(regs);
+                  const isActive = lkIsSelected(regs);
+                  const leads = lkLeads(regs);
 
                   return (
-                    <div key={landkreis}>
-                      {/* Landkreis row — collapsible */}
-                      <button
-                        onClick={() => toggleLk(landkreis)}
-                        className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 hover:bg-bd-card-hover transition-colors"
-                      >
-                        <Chevron expanded={lkExpanded} className="text-bd-text-muted" />
-                        <span className="flex-1 text-left text-xs font-semibold text-bd-text-secondary">
-                          {landkreis}
-                        </span>
-                        {lkSel > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bd-accent/20 text-bd-accent">
-                            {lkSel}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-bd-text-muted">{lkLeads}</span>
-                      </button>
-
-                      {/* Region items — visible when landkreis expanded */}
-                      {lkExpanded && regs.map((region) => {
-                        const isActive = selectedRegions.has(region.id);
-                        const rCount = regionCounts[region.id] || 0;
-                        return (
-                          <button
-                            key={region.id}
-                            onClick={() => onToggle(region.id)}
-                            className={`w-full flex items-center gap-3 pl-14 pr-3 py-1.5 text-sm transition-colors ${
-                              isActive ? 'bg-bd-accent-dim text-bd-accent' : 'hover:bg-bd-card-hover text-bd-text-body'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
-                              isActive ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
-                            }`}>
-                              {isActive && '\u2713'}
-                            </span>
-                            <span className="flex-1 text-left truncate">
-                              <span className="text-bd-text-muted text-xs mr-1.5">{region.plzFrom}–{region.plzTo}</span>
-                              {region.name}
-                            </span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                              isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
-                            }`}>
-                              {rCount}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button
+                      key={landkreis}
+                      onClick={() => onToggleGroup(lkRegionIds(regs))}
+                      className={`w-full flex items-center gap-3 pl-7 pr-3 py-2 text-sm transition-colors ${
+                        isActive ? 'bg-bd-accent-dim text-bd-accent' : 'hover:bg-bd-card-hover text-bd-text-body'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
+                        isActive ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
+                      }`}>
+                        {isActive && '\u2713'}
+                      </span>
+                      <span className="flex-1 text-left text-xs font-semibold">
+                        {landkreis}
+                      </span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
+                      }`}>
+                        {leads}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
