@@ -499,6 +499,7 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [expandedBl, setExpandedBl] = useState<Set<string>>(new Set());
   const [expandedLk, setExpandedLk] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
@@ -528,6 +529,15 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
     }
   }
 
+  const toggleBl = (bl: string) => {
+    setExpandedBl(prev => {
+      const next = new Set(prev);
+      if (next.has(bl)) next.delete(bl);
+      else next.add(bl);
+      return next;
+    });
+  };
+
   const toggleLk = (lk: string) => {
     setExpandedLk(prev => {
       const next = new Set(prev);
@@ -537,14 +547,28 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
     });
   };
 
-  // Count selected regions within a landkreis
-  const lkSelectedCount = (regs: Region[]) => regs.filter(r => selectedRegions.has(r.id)).length;
-  const lkTotalCount = (regs: Region[]) => regs.reduce((sum, r) => sum + (regionCounts[r.id] || 0), 0);
+  // Aggregate helpers
+  const regsSelectedCount = (regs: Region[]) => regs.filter(r => selectedRegions.has(r.id)).length;
+  const regsTotalLeads = (regs: Region[]) => regs.reduce((sum, r) => sum + (regionCounts[r.id] || 0), 0);
+
+  const blSelectedCount = (landkreise: Record<string, Region[]>) =>
+    Object.values(landkreise).reduce((sum, regs) => sum + regsSelectedCount(regs), 0);
+  const blTotalLeads = (landkreise: Record<string, Region[]>) =>
+    Object.values(landkreise).reduce((sum, regs) => sum + regsTotalLeads(regs), 0);
 
   const count = selectedRegions.size;
   const label = count === 0 ? 'Regionen' : count === 1
     ? regions.find(r => selectedRegions.has(r.id))?.name || '1 Region'
     : `${count} Regionen`;
+
+  const Chevron = ({ expanded, className }: { expanded: boolean; className?: string }) => (
+    <svg
+      className={`w-3 h-3 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''} ${className || ''}`}
+      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
 
   return (
     <div className="relative" ref={ref}>
@@ -575,73 +599,90 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggle, onCl
             </button>
           )}
 
-          {Object.entries(grouped).map(([bundesland, landkreise]) => (
-            <div key={bundesland}>
-              {Object.entries(landkreise).map(([landkreis, regs]) => {
-                const isExpanded = expandedLk.has(landkreis);
-                const selCount = lkSelectedCount(regs);
-                const totalLeads = lkTotalCount(regs);
+          {Object.entries(grouped).map(([bundesland, landkreise]) => {
+            const blExpanded = expandedBl.has(bundesland);
+            const blSel = blSelectedCount(landkreise);
+            const blLeads = blTotalLeads(landkreise);
 
-                return (
-                  <div key={landkreis}>
-                    {/* Landkreis row — clickable to expand/collapse */}
-                    <button
-                      onClick={() => toggleLk(landkreis)}
-                      className="w-full flex items-center gap-2 px-4 py-2 hover:bg-bd-card-hover transition-colors"
-                    >
-                      <svg
-                        className={`w-3 h-3 shrink-0 text-bd-text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            return (
+              <div key={bundesland}>
+                {/* Bundesland row — collapsible */}
+                <button
+                  onClick={() => toggleBl(bundesland)}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-bd-card-hover transition-colors border-b border-bd-border/50"
+                >
+                  <Chevron expanded={blExpanded} className="text-bd-text-muted" />
+                  <span className="flex-1 text-left text-xs font-bold uppercase tracking-wider text-bd-text-muted">
+                    {bundesland}
+                  </span>
+                  {blSel > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bd-accent/20 text-bd-accent">
+                      {blSel}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-bd-text-muted">{blLeads}</span>
+                </button>
+
+                {/* Landkreise — visible when bundesland expanded */}
+                {blExpanded && Object.entries(landkreise).map(([landkreis, regs]) => {
+                  const lkExpanded = expandedLk.has(landkreis);
+                  const lkSel = regsSelectedCount(regs);
+                  const lkLeads = regsTotalLeads(regs);
+
+                  return (
+                    <div key={landkreis}>
+                      {/* Landkreis row — collapsible */}
+                      <button
+                        onClick={() => toggleLk(landkreis)}
+                        className="w-full flex items-center gap-2 pl-7 pr-3 py-1.5 hover:bg-bd-card-hover transition-colors"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                      <span className="flex-1 text-left text-xs font-semibold text-bd-text-secondary">
-                        {landkreis}
-                      </span>
-                      {selCount > 0 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bd-accent/20 text-bd-accent">
-                          {selCount} aktiv
+                        <Chevron expanded={lkExpanded} className="text-bd-text-muted" />
+                        <span className="flex-1 text-left text-xs font-semibold text-bd-text-secondary">
+                          {landkreis}
                         </span>
-                      )}
-                      <span className="text-[10px] text-bd-text-muted">
-                        {totalLeads}
-                      </span>
-                    </button>
+                        {lkSel > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bd-accent/20 text-bd-accent">
+                            {lkSel}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-bd-text-muted">{lkLeads}</span>
+                      </button>
 
-                    {/* Region items — only visible when expanded */}
-                    {isExpanded && regs.map((region) => {
-                      const isActive = selectedRegions.has(region.id);
-                      const rCount = regionCounts[region.id] || 0;
-                      return (
-                        <button
-                          key={region.id}
-                          onClick={() => onToggle(region.id)}
-                          className={`w-full flex items-center gap-3 pl-9 pr-4 py-1.5 text-sm transition-colors ${
-                            isActive ? 'bg-bd-accent-dim text-bd-accent' : 'hover:bg-bd-card-hover text-bd-text-body'
-                          }`}
-                        >
-                          <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
-                            isActive ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
-                          }`}>
-                            {isActive && '\u2713'}
-                          </span>
-                          <span className="flex-1 text-left truncate">
-                            <span className="text-bd-text-muted text-xs mr-1.5">{region.plzFrom}–{region.plzTo}</span>
-                            {region.name}
-                          </span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                            isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
-                          }`}>
-                            {rCount}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                      {/* Region items — visible when landkreis expanded */}
+                      {lkExpanded && regs.map((region) => {
+                        const isActive = selectedRegions.has(region.id);
+                        const rCount = regionCounts[region.id] || 0;
+                        return (
+                          <button
+                            key={region.id}
+                            onClick={() => onToggle(region.id)}
+                            className={`w-full flex items-center gap-3 pl-14 pr-3 py-1.5 text-sm transition-colors ${
+                              isActive ? 'bg-bd-accent-dim text-bd-accent' : 'hover:bg-bd-card-hover text-bd-text-body'
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
+                              isActive ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
+                            }`}>
+                              {isActive && '\u2713'}
+                            </span>
+                            <span className="flex-1 text-left truncate">
+                              <span className="text-bd-text-muted text-xs mr-1.5">{region.plzFrom}–{region.plzTo}</span>
+                              {region.name}
+                            </span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                              isActive ? 'bg-bd-accent/20 text-bd-accent' : 'bg-bd-bg-secondary text-bd-text-muted'
+                            }`}>
+                              {rCount}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
 
           <div className="h-1" />
         </div>
