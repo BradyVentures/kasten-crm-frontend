@@ -27,13 +27,14 @@ const MISSING_FIELD_OPTIONS = [
   { value: 'city', label: 'Keine Stadt' },
 ];
 
-type SortField = 'company_name' | 'website_status' | 'contact_person' | 'phone' | 'city' | 'postal_code' | 'branche' | 'status' | 'updated_at';
+type SortField = 'company_name' | 'contact_person' | 'phone' | 'city' | 'postal_code' | 'updated_at';
 
 export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [missingFieldFilter, setMissingFieldFilter] = useState('');
   const [brancheFilter, setBrancheFilter] = useState('');
+  const [websiteStatusFilter, setWebsiteStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [perPage, setPerPage] = useState(50);
@@ -65,12 +66,13 @@ export default function LeadsPage() {
     if (search) params.set('search', search);
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
+    if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
     if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
     params.set('sort_by', sortBy);
     params.set('sort_order', sortOrder);
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, selectedRegions, sortBy, sortOrder, perPage]);
 
   const buildFilterQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -79,8 +81,9 @@ export default function LeadsPage() {
     if (search) params.set('search', search);
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
     if (brancheFilter) params.set('branche', brancheFilter);
+    if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter]);
 
   const { data: leadsData, refetch } = usePolling(
     () => api.get(`/leads?${buildQuery()}`).then((r) => r.data),
@@ -143,7 +146,7 @@ export default function LeadsPage() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, selectedRegions, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, websiteStatusFilter, selectedRegions, perPage]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -175,11 +178,12 @@ export default function LeadsPage() {
     setAssignedFilter('');
     setMissingFieldFilter('');
     setBrancheFilter('');
+    setWebsiteStatusFilter('');
     setSearch('');
     setSelectedRegions(new Set());
   };
 
-  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || search || selectedRegions.size > 0;
+  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || websiteStatusFilter || search || selectedRegions.size > 0;
 
   const SortableTh = ({ field, children, onClick, sortBy: sb, sortOrder: so }: {
     field: SortField;
@@ -218,12 +222,6 @@ export default function LeadsPage() {
 
       {/* Filters */}
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mb-4">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">Alle Status</option>
-          {ALL_STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-          ))}
-        </select>
         <select value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)}>
           <option value="">Alle Mitarbeiter</option>
           {(users || []).map((u) => (
@@ -236,14 +234,6 @@ export default function LeadsPage() {
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
-        {branchen.length > 0 && (
-          <select value={brancheFilter} onChange={(e) => setBrancheFilter(e.target.value)}>
-            <option value="">Alle Branchen</option>
-            {branchen.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        )}
         {regions.length > 0 && (
           <RegionDropdown
             regions={regions}
@@ -311,13 +301,34 @@ export default function LeadsPage() {
                 />
               </th>
               <SortableTh field="company_name" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Firma</SortableTh>
-              <SortableTh field="website_status" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Web-Status</SortableTh>
+              <ColumnFilterTh
+                label="Web-Status"
+                value={websiteStatusFilter}
+                onChange={setWebsiteStatusFilter}
+                options={[
+                  { value: 'keine', label: 'Keine', color: 'text-red-400' },
+                  { value: 'veraltet', label: 'Veraltet', color: 'text-orange-400' },
+                  { value: 'einfach', label: 'Einfach', color: 'text-yellow-400' },
+                  { value: 'ok', label: 'OK', color: 'text-green-400' },
+                  { value: 'unbekannt', label: 'Unbekannt', color: 'text-bd-text-muted' },
+                ]}
+              />
               <SortableTh field="contact_person" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Kontakt</SortableTh>
               <SortableTh field="phone" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Telefon</SortableTh>
               <SortableTh field="city" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Stadt</SortableTh>
               <SortableTh field="postal_code" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>PLZ</SortableTh>
-              <SortableTh field="branche" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Branche</SortableTh>
-              <SortableTh field="status" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Status</SortableTh>
+              <ColumnFilterTh
+                label="Branche"
+                value={brancheFilter}
+                onChange={setBrancheFilter}
+                options={branchen.map(b => ({ value: b, label: b }))}
+              />
+              <ColumnFilterTh
+                label="Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={ALL_STATUSES.map(s => ({ value: s, label: STATUS_CONFIG[s].label, color: STATUS_CONFIG[s].color }))}
+              />
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Zugewiesen</th>
               <SortableTh field="updated_at" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Aktualisiert</SortableTh>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider w-10"></th>
@@ -689,5 +700,79 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggleGroup,
         </div>
       )}
     </div>
+  );
+}
+
+function ColumnFilterTh({ label, value, onChange, options }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string; color?: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLTableCellElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const isActive = value !== '';
+
+  return (
+    <th ref={ref} className="px-4 py-3 text-xs font-medium uppercase tracking-wider relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1 transition-colors select-none ${
+          isActive ? 'text-bd-accent' : 'text-bd-text-muted hover:text-bd-text'
+        }`}
+      >
+        {label}
+        {isActive && <span className="text-[9px] ml-0.5">&#x25CF;</span>}
+        <svg className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 left-0 w-52 max-h-72 overflow-auto bg-bd-card border border-bd-border rounded-lg shadow-xl">
+          {/* All option */}
+          <button
+            onClick={() => { onChange(''); setOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+              !value ? 'bg-bd-accent-dim text-bd-accent font-semibold' : 'hover:bg-bd-card-hover text-bd-text-body'
+            }`}
+          >
+            Alle anzeigen
+          </button>
+          <div className="border-t border-bd-border" />
+          {options.map((opt) => {
+            const selected = value === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(selected ? '' : opt.value); setOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
+                  selected ? 'bg-bd-accent-dim text-bd-accent font-semibold' : 'hover:bg-bd-card-hover text-bd-text-body'
+                }`}
+              >
+                <span className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 text-[8px] ${
+                  selected ? 'border-bd-accent bg-bd-accent text-bd-bg' : 'border-bd-border'
+                }`}>
+                  {selected && '\u2713'}
+                </span>
+                <span className={opt.color && !selected ? opt.color : ''}>{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </th>
   );
 }
