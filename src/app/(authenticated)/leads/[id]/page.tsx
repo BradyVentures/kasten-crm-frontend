@@ -5,12 +5,20 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
 import { useAuth } from '@/context/AuthContext';
-import { Lead, LeadActivity, User, LeadStatus } from '@/types';
+import { Lead, LeadActivity, User, LeadStatus, WebsiteStatus } from '@/types';
 import { STATUS_CONFIG, ACTIVITY_LABELS, formatRelative, formatDate } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
 const ALL_STATUSES: LeadStatus[] = ['neu', 'kontaktiert', 'qualifiziert', 'angebot', 'gewonnen', 'verloren'];
+
+const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: string; bg: string }> = {
+  keine: { label: 'Keine Website', color: 'text-red-400', bg: 'bg-red-500/15' },
+  veraltet: { label: 'Veraltet', color: 'text-orange-400', bg: 'bg-orange-500/15' },
+  einfach: { label: 'Einfach', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
+  ok: { label: 'OK', color: 'text-green-400', bg: 'bg-green-500/15' },
+  unbekannt: { label: 'Unbekannt', color: 'text-bd-text-muted', bg: 'bg-bd-bg-secondary' },
+};
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -185,6 +193,29 @@ export default function LeadDetailPage() {
               <div>
                 <span className="text-bd-text-muted">Quelle</span>
                 <p className="mt-1">{lead.source || '–'}</p>
+              </div>
+              <div>
+                <span className="text-bd-text-muted">Branche</span>
+                <p className="mt-1">
+                  {lead.branche ? (
+                    <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
+                      {lead.branche}
+                    </span>
+                  ) : '–'}
+                </p>
+              </div>
+              <div>
+                <span className="text-bd-text-muted">Website-Status</span>
+                <p className="mt-1">
+                  {lead.website_status ? (
+                    <Badge
+                      color={WEBSITE_STATUS_CONFIG[lead.website_status].color}
+                      bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}
+                    >
+                      {WEBSITE_STATUS_CONFIG[lead.website_status].label}
+                    </Badge>
+                  ) : '–'}
+                </p>
               </div>
             </div>
 

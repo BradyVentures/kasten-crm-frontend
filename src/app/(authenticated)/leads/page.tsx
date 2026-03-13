@@ -25,12 +25,16 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [assignedFilter, setAssignedFilter] = useState('');
   const [missingFieldFilter, setMissingFieldFilter] = useState('');
+  const [brancheFilter, setBrancheFilter] = useState('');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [perPage, setPerPage] = useState(50);
   const [selectedRegions, setSelectedRegions] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortField>('updated_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Distinct values for filters
+  const [branchen, setBranchen] = useState<string[]>([]);
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -43,6 +47,7 @@ export default function LeadsPage() {
 
   useEffect(() => {
     api.get('/regions').then(r => setRegions(r.data)).catch(() => {});
+    api.get('/leads/distinct-values').then(r => setBranchen(r.data.branchen || [])).catch(() => {});
   }, []);
 
   const buildQuery = useCallback(() => {
@@ -51,12 +56,13 @@ export default function LeadsPage() {
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
+    if (brancheFilter) params.set('branche', brancheFilter);
     if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
     params.set('sort_by', sortBy);
     params.set('sort_order', sortOrder);
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, selectedRegions, sortBy, sortOrder, perPage]);
 
   const buildFilterQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -64,8 +70,9 @@ export default function LeadsPage() {
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
     if (missingFieldFilter) params.set('missing_field', missingFieldFilter);
+    if (brancheFilter) params.set('branche', brancheFilter);
     return params.toString();
-  }, [statusFilter, assignedFilter, search, missingFieldFilter]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter]);
 
   const { data: leadsData, refetch } = usePolling(
     () => api.get(`/leads?${buildQuery()}`).then((r) => r.data),
@@ -128,7 +135,7 @@ export default function LeadsPage() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter, assignedFilter, search, missingFieldFilter, selectedRegions, perPage]);
+  }, [statusFilter, assignedFilter, search, missingFieldFilter, brancheFilter, selectedRegions, perPage]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -158,11 +165,12 @@ export default function LeadsPage() {
     setStatusFilter('');
     setAssignedFilter('');
     setMissingFieldFilter('');
+    setBrancheFilter('');
     setSearch('');
     setSelectedRegions(new Set());
   };
 
-  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || search || selectedRegions.size > 0;
+  const hasActiveFilters = statusFilter || assignedFilter || missingFieldFilter || brancheFilter || search || selectedRegions.size > 0;
 
   const SortArrow = ({ field }: { field: SortField }) => {
     if (sortBy !== field) return null;
@@ -209,6 +217,14 @@ export default function LeadsPage() {
             <option key={f.value} value={f.value}>{f.label}</option>
           ))}
         </select>
+        {branchen.length > 0 && (
+          <select value={brancheFilter} onChange={(e) => setBrancheFilter(e.target.value)}>
+            <option value="">Alle Branchen</option>
+            {branchen.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+        )}
         {regions.length > 0 && (
           <RegionDropdown
             regions={regions}
@@ -264,7 +280,7 @@ export default function LeadsPage() {
 
       {/* Leads Table */}
       <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
-        <table className="w-full min-w-[1000px]">
+        <table className="w-full min-w-[1100px]">
           <thead>
             <tr className="border-b border-bd-border text-left">
               <th className="px-3 py-3 w-10">
@@ -291,6 +307,7 @@ export default function LeadsPage() {
                 Stadt<SortArrow field="city" />
               </th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">PLZ</th>
+              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Branche</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Status</th>
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Zugewiesen</th>
               <th
@@ -343,6 +360,13 @@ export default function LeadsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-bd-text-body">{lead.city || '–'}</td>
                   <td className="px-4 py-3 text-sm text-bd-text-body">{lead.postal_code || '–'}</td>
+                  <td className="px-4 py-3 text-sm text-bd-text-body">
+                    {lead.branche ? (
+                      <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
+                        {lead.branche}
+                      </span>
+                    ) : '–'}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge color={STATUS_CONFIG[lead.status].color} bg={STATUS_CONFIG[lead.status].bg}>
                       {STATUS_CONFIG[lead.status].label}
@@ -362,7 +386,7 @@ export default function LeadsPage() {
             })}
             {leads.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-bd-text-muted">
+                <td colSpan={12} className="px-4 py-8 text-center text-bd-text-muted">
                   Keine Leads gefunden.
                 </td>
               </tr>
