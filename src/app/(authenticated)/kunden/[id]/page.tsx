@@ -126,12 +126,12 @@ export default function KundenDetailPage() {
                           <>
                             <span className="text-xs text-bd-text-muted line-through mr-2">{formatCurrency(Number(s.original_price))}</span>
                             <span className="font-semibold text-emerald-400">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
-                            {s.promotion_name && (
-                              <p className="text-xs text-bd-accent mt-0.5">{s.promotion_name}</p>
-                            )}
                           </>
                         ) : (
                           <span className="font-semibold">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
+                        )}
+                        {s.promotion_name && (
+                          <p className="text-xs text-bd-accent mt-0.5">{s.promotion_name}</p>
                         )}
                         {Number(s.commission_rate) > 0 && (
                           <p className="text-xs text-bd-text-muted">
@@ -333,7 +333,9 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
               <option value="">Keine Aktion</option>
               {availablePromotions.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.discount_type === 'fixed' ? formatCurrency(Number(p.discount_value)) : `${Number(p.discount_value)}%`} Rabatt)
+                  {p.name}{Number(p.discount_value) > 0
+                    ? ` (${p.discount_type === 'fixed' ? formatCurrency(Number(p.discount_value)) : `${Number(p.discount_value)}%`} Rabatt)`
+                    : ' (Sonderaktion)'}
                 </option>
               ))}
             </select>
@@ -341,7 +343,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         )}
 
         {/* Discount Preview */}
-        {selectedPromotion && soldPriceNum > 0 && (
+        {selectedPromotion && soldPriceNum > 0 && discountAmount > 0 && (
           <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
             <p className="text-xs text-bd-text-muted mb-1">Rabatt-Vorschau</p>
             <div className="flex items-center justify-between">
@@ -355,6 +357,17 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
               </span>
             </div>
             <p className="text-xs text-bd-text-muted mt-1">{selectedPromotion.name}</p>
+          </div>
+        )}
+
+        {/* No-discount promotion info */}
+        {selectedPromotion && Number(selectedPromotion.discount_value) === 0 && (
+          <div className="bg-bd-accent/5 border border-bd-accent/20 rounded-lg p-3">
+            <p className="text-xs text-bd-text-muted mb-1">Sonderaktion</p>
+            <p className="text-sm font-semibold text-bd-accent">{selectedPromotion.name}</p>
+            {selectedPromotion.description && (
+              <p className="text-xs text-bd-text-muted mt-1">{selectedPromotion.description}</p>
+            )}
           </div>
         )}
 

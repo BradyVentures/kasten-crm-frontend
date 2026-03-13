@@ -110,9 +110,11 @@ function AktionenTab() {
               <h3 className="font-heading font-semibold text-lg">{p.name}</h3>
               <div className="flex-shrink-0 ml-3">
                 <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-bd-accent/15 text-bd-accent">
-                  {p.discount_type === 'fixed'
-                    ? `${formatCurrency(Number(p.discount_value))} Rabatt`
-                    : `${Number(p.discount_value)}% Rabatt`}
+                  {Number(p.discount_value) === 0
+                    ? 'Sonderaktion'
+                    : p.discount_type === 'fixed'
+                      ? `${formatCurrency(Number(p.discount_value))} Rabatt`
+                      : `${Number(p.discount_value)}% Rabatt`}
                 </span>
               </div>
             </div>

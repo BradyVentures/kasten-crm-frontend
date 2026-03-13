@@ -137,9 +137,11 @@ export default function AdminPromotionsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-semibold text-bd-accent">
-                      {p.discount_type === 'fixed'
-                        ? `${formatCurrency(Number(p.discount_value))} Rabatt`
-                        : `${Number(p.discount_value)}% Rabatt`}
+                      {Number(p.discount_value) === 0
+                        ? 'Sonderaktion'
+                        : p.discount_type === 'fixed'
+                          ? `${formatCurrency(Number(p.discount_value))} Rabatt`
+                          : `${Number(p.discount_value)}% Rabatt`}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-bd-text-body">
@@ -222,7 +224,7 @@ function PromotionFormModal({ open, onClose, promotion, services, onSaved }: {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    discount_type: 'fixed' as 'fixed' | 'percentage',
+    discount_mode: 'none' as 'none' | 'fixed' | 'percentage',
     discount_value: '',
     valid_from: '',
     valid_until: '',
@@ -233,11 +235,12 @@ function PromotionFormModal({ open, onClose, promotion, services, onSaved }: {
 
   useEffect(() => {
     if (promotion) {
+      const hasDiscount = Number(promotion.discount_value) > 0;
       setForm({
         name: promotion.name,
         description: promotion.description || '',
-        discount_type: promotion.discount_type,
-        discount_value: promotion.discount_value.toString(),
+        discount_mode: hasDiscount ? promotion.discount_type : 'none',
+        discount_value: hasDiscount ? promotion.discount_value.toString() : '',
         valid_from: promotion.valid_from ? promotion.valid_from.slice(0, 10) : '',
         valid_until: promotion.valid_until ? promotion.valid_until.slice(0, 10) : '',
         max_redemptions: promotion.max_redemptions?.toString() || '',
@@ -245,7 +248,7 @@ function PromotionFormModal({ open, onClose, promotion, services, onSaved }: {
       });
     } else {
       setForm({
-        name: '', description: '', discount_type: 'fixed', discount_value: '',
+        name: '', description: '', discount_mode: 'none', discount_value: '',
         valid_from: '', valid_until: '', max_redemptions: '', applicable_service_ids: [],
       });
     }
@@ -267,8 +270,8 @@ function PromotionFormModal({ open, onClose, promotion, services, onSaved }: {
       const payload = {
         name: form.name,
         description: form.description || null,
-        discount_type: form.discount_type,
-        discount_value: parseFloat(form.discount_value),
+        discount_type: form.discount_mode === 'percentage' ? 'percentage' : 'fixed',
+        discount_value: form.discount_mode === 'none' ? 0 : parseFloat(form.discount_value),
         valid_from: form.valid_from || null,
         valid_until: form.valid_until || null,
         max_redemptions: form.max_redemptions ? parseInt(form.max_redemptions) : null,
@@ -304,49 +307,45 @@ function PromotionFormModal({ open, onClose, promotion, services, onSaved }: {
           <textarea rows={3} className="w-full" placeholder="Freitext-Beschreibung der Aktion..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-bd-text-secondary mb-1">Rabattart *</label>
-            <div className="flex gap-2">
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Rabatt</label>
+          <div className="flex gap-2 mb-3">
+            {([
+              { key: 'none', label: 'Kein Rabatt' },
+              { key: 'fixed', label: 'Festbetrag' },
+              { key: 'percentage', label: 'Prozent' },
+            ] as const).map(opt => (
               <button
+                key={opt.key}
                 type="button"
-                onClick={() => setForm({ ...form, discount_type: 'fixed' })}
+                onClick={() => setForm({ ...form, discount_mode: opt.key, discount_value: opt.key === 'none' ? '' : form.discount_value })}
                 className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all ${
-                  form.discount_type === 'fixed'
+                  form.discount_mode === opt.key
                     ? 'bg-bd-accent text-bd-bg border-bd-accent font-semibold'
                     : 'border-bd-border text-bd-text-body hover:border-bd-accent/50'
                 }`}
               >
-                Festbetrag
+                {opt.label}
               </button>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, discount_type: 'percentage' })}
-                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-all ${
-                  form.discount_type === 'percentage'
-                    ? 'bg-bd-accent text-bd-bg border-bd-accent font-semibold'
-                    : 'border-bd-border text-bd-text-body hover:border-bd-accent/50'
-                }`}
-              >
-                Prozent
-              </button>
+            ))}
+          </div>
+          {form.discount_mode !== 'none' && (
+            <div>
+              <label className="block text-sm text-bd-text-secondary mb-1">
+                Rabattwert {form.discount_mode === 'percentage' ? '(%)' : '(EUR)'} *
+              </label>
+              <input
+                required
+                type="number"
+                step={form.discount_mode === 'percentage' ? '1' : '0.01'}
+                min="0.01"
+                max={form.discount_mode === 'percentage' ? '100' : undefined}
+                className="w-full"
+                value={form.discount_value}
+                onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
+              />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm text-bd-text-secondary mb-1">
-              Rabattwert {form.discount_type === 'percentage' ? '(%)' : '(EUR)'} *
-            </label>
-            <input
-              required
-              type="number"
-              step={form.discount_type === 'percentage' ? '1' : '0.01'}
-              min="0"
-              max={form.discount_type === 'percentage' ? '100' : undefined}
-              className="w-full"
-              value={form.discount_value}
-              onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
-            />
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -404,13 +403,15 @@ function PromotionFormModal({ open, onClose, promotion, services, onSaved }: {
         </div>
 
         {/* Preview */}
-        {form.discount_value && (
+        {form.name && (
           <div className="bg-bd-accent/5 border border-bd-accent/20 rounded-lg p-3">
             <p className="text-xs text-bd-text-muted mb-1">Vorschau</p>
             <p className="text-sm font-semibold text-bd-accent">
-              {form.discount_type === 'fixed'
-                ? `${formatCurrency(parseFloat(form.discount_value))} Rabatt`
-                : `${form.discount_value}% Rabatt`}
+              {form.discount_mode === 'none'
+                ? 'Sonderaktion'
+                : form.discount_mode === 'fixed'
+                  ? `${formatCurrency(parseFloat(form.discount_value) || 0)} Rabatt`
+                  : `${form.discount_value || 0}% Rabatt`}
             </p>
             {form.valid_from || form.valid_until ? (
               <p className="text-xs text-bd-text-muted mt-1">
