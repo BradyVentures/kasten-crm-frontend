@@ -88,6 +88,30 @@ export interface CustomerServiceItem {
   notes: string | null;
   commission_rate: number;
   commission_amount: number;
+  promotion_id: string | null;
+  promotion_name: string | null;
+  original_price: number | null;
+  discount_amount: number | null;
+}
+
+export type DiscountType = 'fixed' | 'percentage';
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description: string | null;
+  discount_type: DiscountType;
+  discount_value: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  max_redemptions: number | null;
+  current_redemptions: number;
+  applicable_service_ids: string[] | null;
+  is_active: boolean;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface LeadActivity {

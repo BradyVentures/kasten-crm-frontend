@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
 import { useAuth } from '@/context/AuthContext';
-import { Service } from '@/types';
+import { Service, Promotion } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 
@@ -17,9 +17,10 @@ interface InfoPage {
   updated_at: string;
 }
 
-type Tab = 'katalog' | 'leitfaden' | 'einwaende' | 'rechner' | 'faq';
+type Tab = 'aktionen' | 'katalog' | 'leitfaden' | 'einwaende' | 'rechner' | 'faq';
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: 'aktionen', label: 'Aktionen' },
   { key: 'katalog', label: 'Service-Katalog' },
   { key: 'leitfaden', label: 'Gesprächsleitfaden' },
   { key: 'einwaende', label: 'Einwandbehandlung' },
@@ -28,7 +29,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function InfoCenterPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('katalog');
+  const [activeTab, setActiveTab] = useState<Tab>('aktionen');
 
   return (
     <div>
@@ -51,11 +52,127 @@ export default function InfoCenterPage() {
         ))}
       </div>
 
+      {activeTab === 'aktionen' && <AktionenTab />}
       {activeTab === 'katalog' && <ServiceKatalog />}
       {activeTab === 'leitfaden' && <EditablePage slug="gespraechsleitfaden" />}
       {activeTab === 'einwaende' && <EditablePage slug="einwandbehandlung" />}
       {activeTab === 'rechner' && <Preisrechner />}
       {activeTab === 'faq' && <EditablePage slug="faq" />}
+    </div>
+  );
+}
+
+// ── Aktionen Tab ─────────────────────────────────────────────────
+
+function AktionenTab() {
+  const { data: promotions } = usePolling<Promotion[]>(
+    () => api.get('/promotions').then((r) => r.data),
+    30000
+  );
+
+  const { data: services } = usePolling<Service[]>(
+    () => api.get('/services').then((r) => r.data),
+    60000
+  );
+
+  const now = new Date();
+  const activePromos = (promotions || []).filter(p => {
+    if (!p.is_active) return false;
+    if (p.valid_until && new Date(p.valid_until) < now) return false;
+    if (p.max_redemptions && p.current_redemptions >= p.max_redemptions) return false;
+    return true;
+  });
+
+  if (!promotions) {
+    return <p className="text-bd-text-muted text-sm">Wird geladen...</p>;
+  }
+
+  if (activePromos.length === 0) {
+    return (
+      <div className="bg-bd-card rounded-bd border border-bd-border p-8 text-center">
+        <p className="text-bd-text-muted text-sm">Aktuell keine aktiven Aktionen verfügbar.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {activePromos.map(p => {
+        const serviceNames = p.applicable_service_ids && services
+          ? p.applicable_service_ids.map(sid => services.find(s => s.id === sid)?.name).filter(Boolean)
+          : null;
+
+        const isUpcoming = p.valid_from && new Date(p.valid_from) > now;
+
+        return (
+          <div key={p.id} className="bg-bd-card rounded-bd border border-bd-border p-5 hover:border-bd-accent/40 transition-colors">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-heading font-semibold text-lg">{p.name}</h3>
+              <div className="flex-shrink-0 ml-3">
+                <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-bd-accent/15 text-bd-accent">
+                  {p.discount_type === 'fixed'
+                    ? `${formatCurrency(Number(p.discount_value))} Rabatt`
+                    : `${Number(p.discount_value)}% Rabatt`}
+                </span>
+              </div>
+            </div>
+
+            {p.description && (
+              <p className="text-sm text-bd-text-body mb-3 leading-relaxed">{p.description}</p>
+            )}
+
+            <div className="space-y-2">
+              {/* Date range */}
+              {(p.valid_from || p.valid_until) && (
+                <div className="flex items-center gap-2 text-xs text-bd-text-muted">
+                  <span>&#9719;</span>
+                  {isUpcoming ? (
+                    <span>
+                      Ab {new Date(p.valid_from!).toLocaleDateString('de-DE')}
+                      {p.valid_until && ` bis ${new Date(p.valid_until).toLocaleDateString('de-DE')}`}
+                    </span>
+                  ) : (
+                    <span>
+                      {p.valid_from && `${new Date(p.valid_from).toLocaleDateString('de-DE')} - `}
+                      {p.valid_until ? new Date(p.valid_until).toLocaleDateString('de-DE') : 'Kein Enddatum'}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Redemption progress */}
+              {p.max_redemptions && (
+                <div>
+                  <div className="flex items-center justify-between text-xs text-bd-text-muted mb-1">
+                    <span>Einlösungen</span>
+                    <span className="font-medium">{p.current_redemptions} / {p.max_redemptions}</span>
+                  </div>
+                  <div className="w-full h-2 bg-bd-bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-bd-accent rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (p.current_redemptions / p.max_redemptions) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Applicable services */}
+              {serviceNames && serviceNames.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {serviceNames.map((name, i) => (
+                    <Badge key={i} color="text-bd-text-secondary" bg="bg-bd-bg-secondary">
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {!serviceNames && (
+                <p className="text-xs text-bd-text-muted pt-1">Gilt für alle Services</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

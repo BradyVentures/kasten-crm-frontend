@@ -16,6 +16,7 @@ const navItems = [
 
 const adminItems = [
   { href: '/admin/services', label: 'Services', icon: '⚙' },
+  { href: '/admin/promotions', label: 'Aktionen', icon: '✦' },
   { href: '/admin/users', label: 'Benutzer', icon: '◇' },
 ];
 

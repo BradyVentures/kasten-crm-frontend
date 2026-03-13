@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
-import { Customer, Service } from '@/types';
+import { Customer, Service, Promotion } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -122,7 +122,17 @@ export default function KundenDetailPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="font-semibold">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
+                        {s.original_price && Number(s.discount_amount) > 0 ? (
+                          <>
+                            <span className="text-xs text-bd-text-muted line-through mr-2">{formatCurrency(Number(s.original_price))}</span>
+                            <span className="font-semibold text-emerald-400">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
+                            {s.promotion_name && (
+                              <p className="text-xs text-bd-accent mt-0.5">{s.promotion_name}</p>
+                            )}
+                          </>
+                        ) : (
+                          <span className="font-semibold">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
+                        )}
                         {Number(s.commission_rate) > 0 && (
                           <p className="text-xs text-bd-text-muted">
                             Prov: {formatCurrency(Number(s.commission_amount))} ({Number(s.commission_rate)}%
@@ -196,25 +206,49 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
   const [contractMonths, setContractMonths] = useState('12');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [promotionId, setPromotionId] = useState('');
+  const [availablePromotions, setAvailablePromotions] = useState<Promotion[]>([]);
 
   const selectedService = services.find((s) => s.id === serviceId);
+  const selectedPromotion = availablePromotions.find((p) => p.id === promotionId);
 
-  const handleServiceSelect = (id: string) => {
+  const handleServiceSelect = async (id: string) => {
     setServiceId(id);
+    setPromotionId('');
+    setAvailablePromotions([]);
     const svc = services.find((s) => s.id === id);
     if (svc) {
       setSoldPrice(svc.base_price.toString());
       setPriceModel(svc.price_model);
+      // Load available promotions for this service
+      try {
+        const { data } = await api.get(`/promotions/for-service/${id}`);
+        setAvailablePromotions(data);
+      } catch {
+        // silently fail
+      }
     }
   };
 
-  // Live commission preview
+  // Live discount preview
   const soldPriceNum = parseFloat(soldPrice) || 0;
   const contractMonthsNum = parseInt(contractMonths) || 0;
+
+  let discountAmount = 0;
+  let finalPrice = soldPriceNum;
+  if (selectedPromotion) {
+    if (selectedPromotion.discount_type === 'fixed') {
+      discountAmount = Math.min(Number(selectedPromotion.discount_value), soldPriceNum);
+    } else {
+      discountAmount = Math.round(soldPriceNum * Number(selectedPromotion.discount_value)) / 100;
+    }
+    finalPrice = Math.max(0, Math.round((soldPriceNum - discountAmount) * 100) / 100);
+  }
+
   const commissionRate = selectedService?.commission_rate || 0;
   const commissionBase = priceModel === 'monatlich'
-    ? soldPriceNum * contractMonthsNum
-    : soldPriceNum;
+    ? finalPrice * contractMonthsNum
+    : finalPrice;
   const commissionPreview = commissionBase * commissionRate / 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -227,6 +261,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         price_model: priceModel,
         contract_months: priceModel === 'monatlich' ? parseInt(contractMonths) : undefined,
         notes: notes || undefined,
+        promotion_id: promotionId || undefined,
       });
       onAssigned();
       onClose();
@@ -234,8 +269,11 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
       setSoldPrice('');
       setContractMonths('12');
       setNotes('');
-    } catch {
-      alert('Fehler');
+      setPromotionId('');
+      setAvailablePromotions([]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler';
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -257,7 +295,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (€) *</label>
+            <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (EUR) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} />
           </div>
           <div>
@@ -287,6 +325,39 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
           </div>
         )}
 
+        {/* Promotion Dropdown */}
+        {availablePromotions.length > 0 && (
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Aktion anwenden</label>
+            <select className="w-full" value={promotionId} onChange={(e) => setPromotionId(e.target.value)}>
+              <option value="">Keine Aktion</option>
+              {availablePromotions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.discount_type === 'fixed' ? formatCurrency(Number(p.discount_value)) : `${Number(p.discount_value)}%`} Rabatt)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Discount Preview */}
+        {selectedPromotion && soldPriceNum > 0 && (
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+            <p className="text-xs text-bd-text-muted mb-1">Rabatt-Vorschau</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm text-bd-text-muted line-through">{formatCurrency(soldPriceNum)}</span>
+                <span className="text-sm text-bd-text-muted mx-2">→</span>
+                <span className="text-lg font-bold text-emerald-400">{formatCurrency(finalPrice)}</span>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-emerald-400/10 text-emerald-400 font-medium">
+                -{formatCurrency(discountAmount)}
+              </span>
+            </div>
+            <p className="text-xs text-bd-text-muted mt-1">{selectedPromotion.name}</p>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Notizen</label>
           <textarea rows={2} className="w-full" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -304,7 +375,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
             </div>
             {priceModel === 'monatlich' && (
               <p className="text-xs text-bd-text-muted mt-1">
-                {formatCurrency(soldPriceNum)}/Mo × {contractMonthsNum} Mo × {commissionRate}%
+                {formatCurrency(finalPrice)}/Mo × {contractMonthsNum} Mo × {commissionRate}%
               </p>
             )}
           </div>
