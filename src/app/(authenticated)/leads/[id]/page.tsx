@@ -139,6 +139,15 @@ export default function LeadDetailPage() {
     }
   };
 
+  const toggleWebsiteChecked = async () => {
+    try {
+      await api.put(`/leads/${id}`, { website_checked: !lead?.website_checked });
+      fetchLead();
+    } catch {
+      alert('Fehler beim Speichern');
+    }
+  };
+
   if (!lead) {
     return <div className="flex items-center justify-center h-64">
       <div className="w-8 h-8 border-2 border-bd-accent border-t-transparent rounded-full animate-spin" />
@@ -155,7 +164,27 @@ export default function LeadDetailPage() {
           <button onClick={() => router.back()} className="text-sm text-bd-text-muted hover:text-bd-text mb-2 block">
             ← Zurück zu Leads
           </button>
-          <h1 className="font-heading text-2xl font-bold">{lead.company_name}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-heading text-2xl font-bold">{lead.company_name}</h1>
+            {!readOnly && (
+              <button
+                onClick={toggleWebsiteChecked}
+                title={lead.website_checked ? 'Website geprüft' : 'Website noch nicht geprüft'}
+                className={`shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center text-sm transition-all ${
+                  lead.website_checked
+                    ? 'border-green-500 bg-green-500/20 text-green-400'
+                    : 'border-bd-border hover:border-bd-text-muted text-transparent hover:text-bd-text-muted'
+                }`}
+              >
+                {lead.website_checked ? '\u2713' : '\u2713'}
+              </button>
+            )}
+            {readOnly && lead.website_checked && (
+              <span className="shrink-0 w-7 h-7 rounded-full border-2 border-green-500 bg-green-500/20 text-green-400 flex items-center justify-center text-sm" title="Website geprüft">
+                {'\u2713'}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           {lead.status !== 'gewonnen' && lead.status !== 'verloren' && !readOnly && (
@@ -366,6 +395,11 @@ export default function LeadDetailPage() {
 
             <p className="text-xs text-bd-text-muted mt-4">Erstellt: {formatDate(lead.created_at)}</p>
           </div>
+
+          {/* Quick Note */}
+          {!readOnly && (
+            <QuickNote leadId={id} onAdded={fetchLead} />
+          )}
         </div>
 
         {/* Activity Timeline */}
@@ -634,5 +668,46 @@ function AddActivityModal({ leadId, open, onClose, onAdded }: {
         </button>
       </form>
     </Modal>
+  );
+}
+
+function QuickNote({ leadId, onAdded }: { leadId: string; onAdded: () => void }) {
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!note.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/leads/${leadId}/activities`, { type: 'notiz', description: note.trim() });
+      setNote('');
+      onAdded();
+    } catch {
+      alert('Fehler beim Speichern');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-bd-card rounded-bd p-4 border border-bd-border">
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Schnelle Notiz hinzufügen..."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="flex-1 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={saving || !note.trim()}
+          className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all shrink-0"
+        >
+          {saving ? '...' : 'Notiz'}
+        </button>
+      </form>
+    </div>
   );
 }

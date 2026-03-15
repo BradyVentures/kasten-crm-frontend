@@ -377,9 +377,14 @@ export default function LeadsPage() {
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/leads/${lead.id}`} className="font-medium hover:text-bd-accent transition-colors">
-                      {lead.company_name}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/leads/${lead.id}`} className="font-medium hover:text-bd-accent transition-colors">
+                        {lead.company_name}
+                      </Link>
+                      {lead.website_checked && (
+                        <span className="shrink-0 w-4 h-4 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-[10px]" title="Website geprüft">{'\u2713'}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {lead.website_status ? (

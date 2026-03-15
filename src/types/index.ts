@@ -28,6 +28,7 @@ export interface Lead {
   bundesland: string | null;
   branche: string | null;
   website_status: WebsiteStatus | null;
+  website_checked: boolean;
   status: LeadStatus;
   assigned_to: string | null;
   assigned_to_name: string | null;
