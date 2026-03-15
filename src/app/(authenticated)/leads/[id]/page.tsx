@@ -28,6 +28,8 @@ export default function LeadDetailPage() {
   const [locked, setLocked] = useState(false);
   const [lockedByOther, setLockedByOther] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [showActivity, setShowActivity] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
 
@@ -97,6 +99,46 @@ export default function LeadDetailPage() {
     fetchLead();
   };
 
+  const startEditing = () => {
+    if (!lead) return;
+    setEditForm({
+      company_name: lead.company_name || '',
+      contact_person: lead.contact_person || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      website: lead.website || '',
+      address: lead.address || '',
+      postal_code: lead.postal_code || '',
+      city: lead.city || '',
+      branche: lead.branche || '',
+      website_status: lead.website_status || 'unbekannt',
+      source: lead.source || '',
+      notes: lead.notes || '',
+    });
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setEditForm({});
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/leads/${id}`, {
+        ...editForm,
+        website_status: editForm.website_status || 'unbekannt',
+      });
+      await fetchLead();
+      setEditing(false);
+    } catch {
+      alert('Fehler beim Speichern');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!lead) {
     return <div className="flex items-center justify-center h-64">
       <div className="w-8 h-8 border-2 border-bd-accent border-t-transparent rounded-full animate-spin" />
@@ -136,105 +178,190 @@ export default function LeadDetailPage() {
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-semibold">Lead-Details</h2>
-              {!readOnly && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <select value={lead.status} onChange={(e) => handleStatusChange(e.target.value as LeadStatus)} className="text-sm">
-                    {ALL_STATUSES.map((s) => (
-                      <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-                    ))}
-                  </select>
-                  <select value={lead.assigned_to || ''} onChange={(e) => handleAssign(e.target.value || null)} className="text-sm">
-                    <option value="">Nicht zugewiesen</option>
-                    {(users || []).map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-bd-text-muted">Status</span>
-                <div className="mt-1">
-                  <Badge color={STATUS_CONFIG[lead.status].color} bg={STATUS_CONFIG[lead.status].bg}>
-                    {STATUS_CONFIG[lead.status].label}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Zugewiesen an</span>
-                <p className="mt-1">{lead.assigned_to_name || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Kontaktperson</span>
-                <p className="mt-1">{lead.contact_person || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">E-Mail</span>
-                <p className="mt-1">{lead.email || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Telefon</span>
-                <p className="mt-1">{lead.phone || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Website</span>
-                <p className="mt-1">
-                  {lead.website ? (
-                    <a
-                      href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-bd-accent hover:underline"
-                    >
-                      {lead.website}
-                    </a>
-                  ) : '–'}
-                </p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Adresse</span>
-                <p className="mt-1">{lead.address || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">PLZ / Stadt</span>
-                <p className="mt-1">{[lead.postal_code, lead.city].filter(Boolean).join(' ') || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Quelle</span>
-                <p className="mt-1">{lead.source || '–'}</p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Branche</span>
-                <p className="mt-1">
-                  {lead.branche ? (
-                    <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
-                      {lead.branche}
-                    </span>
-                  ) : '–'}
-                </p>
-              </div>
-              <div>
-                <span className="text-bd-text-muted">Website-Status</span>
-                <p className="mt-1">
-                  {lead.website_status ? (
-                    <Badge
-                      color={WEBSITE_STATUS_CONFIG[lead.website_status].color}
-                      bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}
-                    >
-                      {WEBSITE_STATUS_CONFIG[lead.website_status].label}
-                    </Badge>
-                  ) : '–'}
-                </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                {!readOnly && !editing && (
+                  <button onClick={startEditing} className="px-3 py-1.5 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors">
+                    Bearbeiten
+                  </button>
+                )}
+                {!readOnly && (
+                  <>
+                    <select value={lead.status} onChange={(e) => handleStatusChange(e.target.value as LeadStatus)} className="text-sm">
+                      {ALL_STATUSES.map((s) => (
+                        <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+                      ))}
+                    </select>
+                    <select value={lead.assigned_to || ''} onChange={(e) => handleAssign(e.target.value || null)} className="text-sm">
+                      <option value="">Nicht zugewiesen</option>
+                      {(users || []).map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
             </div>
 
-            {lead.notes && (
-              <div className="mt-4 pt-4 border-t border-bd-border">
-                <span className="text-sm text-bd-text-muted">Notizen</span>
-                <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.notes}</p>
+            {editing ? (
+              /* Edit Mode */
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Firmenname *</label>
+                    <input required className="w-full text-sm" value={editForm.company_name} onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Kontaktperson</label>
+                    <input className="w-full text-sm" value={editForm.contact_person} onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">E-Mail</label>
+                    <input type="email" className="w-full text-sm" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Telefon</label>
+                    <input className="w-full text-sm" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Website</label>
+                    <input className="w-full text-sm" value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Website-Status</label>
+                    <select className="w-full text-sm" value={editForm.website_status} onChange={(e) => setEditForm({ ...editForm, website_status: e.target.value })}>
+                      {Object.entries(WEBSITE_STATUS_CONFIG).map(([val, cfg]) => (
+                        <option key={val} value={val}>{cfg.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Adresse</label>
+                    <input className="w-full text-sm" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">PLZ</label>
+                    <input className="w-full text-sm" value={editForm.postal_code} onChange={(e) => setEditForm({ ...editForm, postal_code: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Stadt</label>
+                    <input className="w-full text-sm" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Branche</label>
+                    <input className="w-full text-sm" value={editForm.branche} onChange={(e) => setEditForm({ ...editForm, branche: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Quelle</label>
+                    <input className="w-full text-sm" value={editForm.source} onChange={(e) => setEditForm({ ...editForm, source: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-bd-text-muted mb-1">Notizen</label>
+                  <textarea rows={3} className="w-full text-sm" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={cancelEditing}
+                    className="px-4 py-2 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={saveEdit}
+                    disabled={saving}
+                    className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
+                  >
+                    {saving ? 'Speichern...' : 'Speichern'}
+                  </button>
+                </div>
               </div>
+            ) : (
+              /* View Mode */
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-bd-text-muted">Status</span>
+                    <div className="mt-1">
+                      <Badge color={STATUS_CONFIG[lead.status].color} bg={STATUS_CONFIG[lead.status].bg}>
+                        {STATUS_CONFIG[lead.status].label}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Zugewiesen an</span>
+                    <p className="mt-1">{lead.assigned_to_name || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Kontaktperson</span>
+                    <p className="mt-1">{lead.contact_person || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">E-Mail</span>
+                    <p className="mt-1">{lead.email || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Telefon</span>
+                    <p className="mt-1">{lead.phone || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Website</span>
+                    <p className="mt-1">
+                      {lead.website ? (
+                        <a
+                          href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-bd-accent hover:underline"
+                        >
+                          {lead.website}
+                        </a>
+                      ) : '–'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Adresse</span>
+                    <p className="mt-1">{lead.address || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">PLZ / Stadt</span>
+                    <p className="mt-1">{[lead.postal_code, lead.city].filter(Boolean).join(' ') || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Quelle</span>
+                    <p className="mt-1">{lead.source || '–'}</p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Branche</span>
+                    <p className="mt-1">
+                      {lead.branche ? (
+                        <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
+                          {lead.branche}
+                        </span>
+                      ) : '–'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-bd-text-muted">Website-Status</span>
+                    <p className="mt-1">
+                      {lead.website_status ? (
+                        <Badge
+                          color={WEBSITE_STATUS_CONFIG[lead.website_status].color}
+                          bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}
+                        >
+                          {WEBSITE_STATUS_CONFIG[lead.website_status].label}
+                        </Badge>
+                      ) : '–'}
+                    </p>
+                  </div>
+                </div>
+
+                {lead.notes && (
+                  <div className="mt-4 pt-4 border-t border-bd-border">
+                    <span className="text-sm text-bd-text-muted">Notizen</span>
+                    <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.notes}</p>
+                  </div>
+                )}
+              </>
             )}
 
             <p className="text-xs text-bd-text-muted mt-4">Erstellt: {formatDate(lead.created_at)}</p>

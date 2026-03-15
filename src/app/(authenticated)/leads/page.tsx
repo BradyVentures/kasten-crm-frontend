@@ -21,65 +21,48 @@ const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: strin
 
 type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at';
 
-// Read URL params on mount to restore filter state after navigation
-function getUrlParam(key: string, fallback = ''): string {
-  if (typeof window === 'undefined') return fallback;
-  return new URLSearchParams(window.location.search).get(key) || fallback;
+const FILTER_STORAGE_KEY = 'leads-filters';
+
+function loadFilters(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const s = sessionStorage.getItem(FILTER_STORAGE_KEY);
+    return s ? JSON.parse(s) : {};
+  } catch { return {}; }
 }
 
 export default function LeadsPage() {
-  const [statusFilter, setStatusFilter] = useState(() => getUrlParam('status'));
-  const [assignedFilter, setAssignedFilter] = useState(() => getUrlParam('assigned_to'));
-  const [brancheFilter, setBrancheFilter] = useState(() => getUrlParam('branche'));
-  const [websiteStatusFilter, setWebsiteStatusFilter] = useState(() => getUrlParam('website_status'));
-  const [phoneFilter, setPhoneFilter] = useState(() => getUrlParam('phone_filter'));
-  const [search, setSearch] = useState(() => getUrlParam('search'));
+  const saved = useRef(loadFilters());
+  const [statusFilter, setStatusFilter] = useState(saved.current.status || '');
+  const [assignedFilter, setAssignedFilter] = useState(saved.current.assigned_to || '');
+  const [brancheFilter, setBrancheFilter] = useState(saved.current.branche || '');
+  const [websiteStatusFilter, setWebsiteStatusFilter] = useState(saved.current.website_status || '');
+  const [phoneFilter, setPhoneFilter] = useState(saved.current.phone_filter || '');
+  const [search, setSearch] = useState(saved.current.search || '');
   const [showCreate, setShowCreate] = useState(false);
-  const [perPage, setPerPage] = useState(() => parseInt(getUrlParam('per_page', '50')) || 50);
+  const [perPage, setPerPage] = useState(parseInt(saved.current.per_page || '50') || 50);
   const [selectedRegions, setSelectedRegions] = useState<Set<string>>(() => {
-    const r = getUrlParam('regions');
+    const r = saved.current.regions;
     return r ? new Set(r.split(',')) : new Set();
   });
-  const [sortBy, setSortBy] = useState<SortField>(() => (getUrlParam('sort_by', 'updated_at') as SortField) || 'updated_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => (getUrlParam('sort_order', 'desc') as 'asc' | 'desc') || 'desc');
+  const [sortBy, setSortBy] = useState<SortField>((saved.current.sort_by as SortField) || 'updated_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((saved.current.sort_order as 'asc' | 'desc') || 'desc');
 
-  // Sync filter state to URL so back-navigation restores filters
+  // Persist filter state to sessionStorage
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (statusFilter) params.set('status', statusFilter);
-    if (assignedFilter) params.set('assigned_to', assignedFilter);
-    if (brancheFilter) params.set('branche', brancheFilter);
-    if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
-    if (phoneFilter) params.set('phone_filter', phoneFilter);
-    if (search) params.set('search', search);
-    if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
-    if (sortBy !== 'updated_at') params.set('sort_by', sortBy);
-    if (sortOrder !== 'desc') params.set('sort_order', sortOrder);
-    if (perPage !== 50) params.set('per_page', perPage.toString());
-    const query = params.toString();
-    const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
-    window.history.replaceState({}, '', newUrl);
+    const data: Record<string, string> = {};
+    if (statusFilter) data.status = statusFilter;
+    if (assignedFilter) data.assigned_to = assignedFilter;
+    if (brancheFilter) data.branche = brancheFilter;
+    if (websiteStatusFilter) data.website_status = websiteStatusFilter;
+    if (phoneFilter) data.phone_filter = phoneFilter;
+    if (search) data.search = search;
+    if (selectedRegions.size > 0) data.regions = Array.from(selectedRegions).join(',');
+    if (sortBy !== 'updated_at') data.sort_by = sortBy;
+    if (sortOrder !== 'desc') data.sort_order = sortOrder;
+    if (perPage !== 50) data.per_page = perPage.toString();
+    try { sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(data)); } catch {}
   }, [statusFilter, assignedFilter, brancheFilter, websiteStatusFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
-
-  // Restore filters from URL on back/forward browser navigation
-  useEffect(() => {
-    const syncFromUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      setStatusFilter(params.get('status') || '');
-      setAssignedFilter(params.get('assigned_to') || '');
-      setBrancheFilter(params.get('branche') || '');
-      setWebsiteStatusFilter(params.get('website_status') || '');
-      setPhoneFilter(params.get('phone_filter') || '');
-      setSearch(params.get('search') || '');
-      const r = params.get('regions');
-      setSelectedRegions(r ? new Set(r.split(',')) : new Set());
-      setSortBy((params.get('sort_by') as SortField) || 'updated_at');
-      setSortOrder((params.get('sort_order') as 'asc' | 'desc') || 'desc');
-      setPerPage(parseInt(params.get('per_page') || '50') || 50);
-    };
-    window.addEventListener('popstate', syncFromUrl);
-    return () => window.removeEventListener('popstate', syncFromUrl);
-  }, []);
 
   // Distinct values for filters
   const [branchen, setBranchen] = useState<string[]>([]);
