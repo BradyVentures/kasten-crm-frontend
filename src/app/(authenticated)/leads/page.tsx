@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
@@ -19,7 +19,28 @@ const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: strin
   unbekannt: { label: 'Unbekannt', color: 'text-bd-text-muted', bg: 'bg-bd-bg-secondary' },
 };
 
-type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at';
+type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at' | 'website_checked';
+
+const DEFAULT_COLUMN_ORDER = [
+  'company_name', 'website_checked', 'website_status', 'contact_person', 'phone',
+  'city', 'postal_code', 'branche', 'status', 'assigned_to', 'updated_at',
+];
+
+const COLUMN_ORDER_KEY = 'leads-column-order';
+
+function loadColumnOrder(): string[] {
+  if (typeof window === 'undefined') return DEFAULT_COLUMN_ORDER;
+  try {
+    const s = localStorage.getItem(COLUMN_ORDER_KEY);
+    if (!s) return DEFAULT_COLUMN_ORDER;
+    const stored: string[] = JSON.parse(s);
+    // Ensure all known columns are present, remove unknown ones
+    const known = new Set(DEFAULT_COLUMN_ORDER);
+    const valid = stored.filter(id => known.has(id));
+    const missing = DEFAULT_COLUMN_ORDER.filter(id => !valid.includes(id));
+    return [...valid, ...missing];
+  } catch { return DEFAULT_COLUMN_ORDER; }
+}
 
 const FILTER_STORAGE_KEY = 'leads-filters';
 
@@ -207,20 +228,107 @@ export default function LeadsPage() {
 
   const hasActiveFilters = statusFilter || assignedFilter || brancheFilter || websiteStatusFilter || phoneFilter || search || selectedRegions.size > 0;
 
-  const SortableTh = ({ field, children, onClick, sortBy: sb, sortOrder: so }: {
-    field: SortField;
-    children: React.ReactNode;
-    onClick: (field: SortField) => void;
-    sortBy: SortField;
-    sortOrder: 'asc' | 'desc';
-  }) => (
-    <th
-      className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none"
-      onClick={() => onClick(field)}
-    >
-      {children}{sb === field && <span className="ml-1">{so === 'asc' ? '↑' : '↓'}</span>}
-    </th>
-  );
+  // Column order (draggable)
+  const [columnOrder, setColumnOrder] = useState<string[]>(loadColumnOrder);
+  const dragCol = useRef<number | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<number | null>(null);
+
+  const handleColumnDrop = (targetIdx: number) => {
+    if (dragCol.current === null || dragCol.current === targetIdx) return;
+    const next = [...columnOrder];
+    const [moved] = next.splice(dragCol.current, 1);
+    next.splice(targetIdx, 0, moved);
+    setColumnOrder(next);
+    try { localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(next)); } catch {}
+    dragCol.current = null;
+    setDragOverCol(null);
+  };
+
+  // Column definitions (keyed by id)
+  const columnDefs: Record<string, { renderHeader: () => React.ReactNode; renderCell: (lead: Lead) => React.ReactNode }> = {
+    company_name: {
+      renderHeader: () => <SortLabel field="company_name" label="Firma" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderCell: (lead) => (
+        <Link href={`/leads/${lead.id}`} className="font-medium hover:text-bd-accent transition-colors">
+          {lead.company_name}
+        </Link>
+      ),
+    },
+    website_checked: {
+      renderHeader: () => <SortLabel field="website_checked" label="Gepr\u00fcft" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderCell: (lead) => lead.website_checked
+        ? <span className="text-green-400 text-sm">{'\u2713'}</span>
+        : <span className="text-bd-text-muted">–</span>,
+    },
+    website_status: {
+      renderHeader: () => (
+        <ColumnFilterTh label="Web-Status" value={websiteStatusFilter} onChange={setWebsiteStatusFilter} multi options={[
+          { value: 'keine', label: 'Keine', color: 'text-red-400' },
+          { value: 'veraltet', label: 'Veraltet', color: 'text-orange-400' },
+          { value: 'einfach', label: 'Einfach', color: 'text-yellow-400' },
+          { value: 'ok', label: 'OK', color: 'text-green-400' },
+          { value: 'unbekannt', label: 'Unbekannt', color: 'text-bd-text-muted' },
+        ]} />
+      ),
+      renderCell: (lead) => lead.website_status ? (
+        <Badge color={WEBSITE_STATUS_CONFIG[lead.website_status].color} bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}>
+          {WEBSITE_STATUS_CONFIG[lead.website_status].label}
+        </Badge>
+      ) : <span className="text-bd-text-muted">–</span>,
+    },
+    contact_person: {
+      renderHeader: () => <SortLabel field="contact_person" label="Kontakt" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderCell: (lead) => <>{lead.contact_person || '–'}</>,
+    },
+    phone: {
+      renderHeader: () => (
+        <ColumnFilterTh label="Telefon" value={phoneFilter} onChange={setPhoneFilter} options={[
+          { value: 'vorhanden', label: 'Vorhanden', color: 'text-green-400' },
+          { value: 'keine', label: 'Keine', color: 'text-red-400' },
+        ]} />
+      ),
+      renderCell: (lead) => lead.phone
+        ? <span>{lead.phone}</span>
+        : <span className="text-red-400 text-xs">fehlt</span>,
+    },
+    city: {
+      renderHeader: () => <SortLabel field="city" label="Stadt" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderCell: (lead) => <>{lead.city || '–'}</>,
+    },
+    postal_code: {
+      renderHeader: () => <SortLabel field="postal_code" label="PLZ" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderCell: (lead) => <>{lead.postal_code || '–'}</>,
+    },
+    branche: {
+      renderHeader: () => (
+        <ColumnFilterTh label="Branche" value={brancheFilter} onChange={setBrancheFilter} options={branchen.map(b => ({ value: b, label: b }))} />
+      ),
+      renderCell: (lead) => lead.branche ? (
+        <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
+          {lead.branche}
+        </span>
+      ) : <>{'–'}</>,
+    },
+    status: {
+      renderHeader: () => (
+        <ColumnFilterTh label="Status" value={statusFilter} onChange={setStatusFilter}
+          options={ALL_STATUSES.map(s => ({ value: s, label: STATUS_CONFIG[s].label, color: STATUS_CONFIG[s].color }))} />
+      ),
+      renderCell: (lead) => (
+        <Badge color={STATUS_CONFIG[lead.status].color} bg={STATUS_CONFIG[lead.status].bg}>
+          {STATUS_CONFIG[lead.status].label}
+        </Badge>
+      ),
+    },
+    assigned_to: {
+      renderHeader: () => <span className="text-xs text-bd-text-muted font-medium uppercase tracking-wider">Zugewiesen</span>,
+      renderCell: (lead) => <>{lead.assigned_to_name || '–'}</>,
+    },
+    updated_at: {
+      renderHeader: () => <SortLabel field="updated_at" label="Aktualisiert" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderCell: (lead) => <span className="text-xs text-bd-text-muted">{formatRelative(lead.updated_at)}</span>,
+    },
+  };
 
   return (
     <div>
@@ -305,7 +413,7 @@ export default function LeadsPage() {
 
       {/* Leads Table */}
       <div className="bg-bd-card rounded-bd border border-bd-border overflow-x-auto">
-        <table className="w-full min-w-[1100px]">
+        <table className="w-full min-w-[1200px]">
           <thead>
             <tr className="border-b border-bd-border text-left">
               <th className="px-3 py-3 w-10">
@@ -316,46 +424,23 @@ export default function LeadsPage() {
                   className="rounded border-bd-border cursor-pointer accent-bd-accent"
                 />
               </th>
-              <SortableTh field="company_name" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Firma</SortableTh>
-              <ColumnFilterTh
-                label="Web-Status"
-                value={websiteStatusFilter}
-                onChange={setWebsiteStatusFilter}
-                multi
-                options={[
-                  { value: 'keine', label: 'Keine', color: 'text-red-400' },
-                  { value: 'veraltet', label: 'Veraltet', color: 'text-orange-400' },
-                  { value: 'einfach', label: 'Einfach', color: 'text-yellow-400' },
-                  { value: 'ok', label: 'OK', color: 'text-green-400' },
-                  { value: 'unbekannt', label: 'Unbekannt', color: 'text-bd-text-muted' },
-                ]}
-              />
-              <SortableTh field="contact_person" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Kontakt</SortableTh>
-              <ColumnFilterTh
-                label="Telefon"
-                value={phoneFilter}
-                onChange={setPhoneFilter}
-                options={[
-                  { value: 'vorhanden', label: 'Vorhanden', color: 'text-green-400' },
-                  { value: 'keine', label: 'Keine', color: 'text-red-400' },
-                ]}
-              />
-              <SortableTh field="city" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Stadt</SortableTh>
-              <SortableTh field="postal_code" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>PLZ</SortableTh>
-              <ColumnFilterTh
-                label="Branche"
-                value={brancheFilter}
-                onChange={setBrancheFilter}
-                options={branchen.map(b => ({ value: b, label: b }))}
-              />
-              <ColumnFilterTh
-                label="Status"
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={ALL_STATUSES.map(s => ({ value: s, label: STATUS_CONFIG[s].label, color: STATUS_CONFIG[s].color }))}
-              />
-              <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Zugewiesen</th>
-              <SortableTh field="updated_at" onClick={handleSort} sortBy={sortBy} sortOrder={sortOrder}>Aktualisiert</SortableTh>
+              {columnOrder.map((colId, idx) => {
+                const def = columnDefs[colId];
+                if (!def) return null;
+                return (
+                  <th
+                    key={colId}
+                    draggable
+                    onDragStart={() => { dragCol.current = idx; }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverCol(idx); }}
+                    onDragEnd={() => setDragOverCol(null)}
+                    onDrop={() => handleColumnDrop(idx)}
+                    className={`px-4 py-3 cursor-grab ${dragOverCol === idx ? 'border-l-2 border-bd-accent' : ''}`}
+                  >
+                    {def.renderHeader()}
+                  </th>
+                );
+              })}
               <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider w-10"></th>
             </tr>
           </thead>
@@ -376,52 +461,15 @@ export default function LeadsPage() {
                       className="rounded border-bd-border cursor-pointer accent-bd-accent"
                     />
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/leads/${lead.id}`} className="font-medium hover:text-bd-accent transition-colors">
-                        {lead.company_name}
-                      </Link>
-                      {lead.website_checked && (
-                        <span className="shrink-0 w-4 h-4 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-[10px]" title="Website geprüft">{'\u2713'}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {lead.website_status ? (
-                      <Badge
-                        color={WEBSITE_STATUS_CONFIG[lead.website_status].color}
-                        bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}
-                      >
-                        {WEBSITE_STATUS_CONFIG[lead.website_status].label}
-                      </Badge>
-                    ) : (
-                      <span className="text-bd-text-muted">–</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-bd-text-body">{lead.contact_person || '–'}</td>
-                  <td className="px-4 py-3 text-sm text-bd-text-body">
-                    {lead.phone ? (
-                      <span>{lead.phone}</span>
-                    ) : (
-                      <span className="text-red-400 text-xs">fehlt</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-bd-text-body">{lead.city || '–'}</td>
-                  <td className="px-4 py-3 text-sm text-bd-text-body">{lead.postal_code || '–'}</td>
-                  <td className="px-4 py-3 text-sm text-bd-text-body">
-                    {lead.branche ? (
-                      <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
-                        {lead.branche}
-                      </span>
-                    ) : '–'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge color={STATUS_CONFIG[lead.status].color} bg={STATUS_CONFIG[lead.status].bg}>
-                      {STATUS_CONFIG[lead.status].label}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-bd-text-body">{lead.assigned_to_name || '–'}</td>
-                  <td className="px-4 py-3 text-xs text-bd-text-muted">{formatRelative(lead.updated_at)}</td>
+                  {columnOrder.map((colId) => {
+                    const def = columnDefs[colId];
+                    if (!def) return null;
+                    return (
+                      <td key={colId} className="px-4 py-3 text-sm text-bd-text-body">
+                        {def.renderCell(lead)}
+                      </td>
+                    );
+                  })}
                   <td className="px-4 py-3">
                     {lock && (
                       <span className="text-yellow-400 text-xs" title={`Bearbeitet von ${lock.user_name}`}>
@@ -434,7 +482,7 @@ export default function LeadsPage() {
             })}
             {leads.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-bd-text-muted">
+                <td colSpan={columnOrder.length + 2} className="px-4 py-8 text-center text-bd-text-muted">
                   Keine Leads gefunden.
                 </td>
               </tr>
@@ -733,6 +781,24 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggleGroup,
   );
 }
 
+function SortLabel({ field, label, sortBy: sb, sortOrder: so, onClick }: {
+  field: SortField;
+  label: string;
+  sortBy: SortField;
+  sortOrder: 'asc' | 'desc';
+  onClick: (field: SortField) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(field)}
+      className="text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none flex items-center gap-1"
+    >
+      {label}{sb === field && <span>{so === 'asc' ? '\u2191' : '\u2193'}</span>}
+    </button>
+  );
+}
+
 function ColumnFilterTh({ label, value, onChange, options, multi = false }: {
   label: string;
   value: string;
@@ -741,7 +807,7 @@ function ColumnFilterTh({ label, value, onChange, options, multi = false }: {
   multi?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLTableCellElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -772,11 +838,11 @@ function ColumnFilterTh({ label, value, onChange, options, multi = false }: {
   };
 
   return (
-    <th ref={ref} className="px-4 py-3 text-xs font-medium uppercase tracking-wider relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className={`flex items-center gap-1 transition-colors select-none ${
+        className={`flex items-center gap-1 transition-colors select-none text-xs font-medium uppercase tracking-wider ${
           isActive ? 'text-bd-accent' : 'text-bd-text-muted hover:text-bd-text'
         }`}
       >
@@ -821,6 +887,6 @@ function ColumnFilterTh({ label, value, onChange, options, multi = false }: {
           })}
         </div>
       )}
-    </th>
+    </div>
   );
 }
