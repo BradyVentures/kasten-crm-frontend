@@ -150,6 +150,16 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleDeleteLead = async () => {
+    if (!confirm(`Lead "${lead?.company_name}" wirklich endgültig löschen? Alle Aktivitäten werden ebenfalls gelöscht.`)) return;
+    try {
+      await api.delete(`/leads/${id}`);
+      router.push('/leads');
+    } catch {
+      alert('Fehler beim Löschen des Leads');
+    }
+  };
+
   const toggleWebsiteChecked = async () => {
     try {
       await api.put(`/leads/${id}`, { website_checked: !lead?.website_checked });
@@ -201,6 +211,11 @@ export default function LeadDetailPage() {
           {lead.status !== 'gewonnen' && lead.status !== 'verloren' && !readOnly && (
             <button onClick={() => setShowConvert(true)} className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
               In Kunde umwandeln
+            </button>
+          )}
+          {!readOnly && (
+            <button onClick={handleDeleteLead} className="px-4 py-2 text-sm border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-all">
+              Löschen
             </button>
           )}
         </div>
