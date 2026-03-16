@@ -297,11 +297,11 @@ export default function LeadDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-bd-text-muted mb-1">Web Check</label>
-                  <textarea rows={3} className="w-full text-sm" placeholder="Ergebnisse der Website-Prüfung..." value={editForm.website_check_notes} onChange={(e) => setEditForm({ ...editForm, website_check_notes: e.target.value })} />
+                  <textarea rows={6} className="w-full text-sm" placeholder="Ergebnisse der Website-Prüfung..." value={editForm.website_check_notes} onChange={(e) => setEditForm({ ...editForm, website_check_notes: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-xs text-bd-text-muted mb-1">Notizen</label>
-                  <textarea rows={3} className="w-full text-sm" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+                  <textarea rows={6} className="w-full text-sm" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
@@ -726,7 +726,7 @@ function InlineTextarea({ leadId, field, value, placeholder, onSaved }: { leadId
   return (
     <div className="mt-1">
       <textarea
-        rows={3}
+        rows={6}
         placeholder={placeholder}
         value={text}
         onChange={(e) => setText(e.target.value)}
