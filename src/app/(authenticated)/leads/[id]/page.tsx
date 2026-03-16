@@ -124,6 +124,7 @@ export default function LeadDetailPage() {
       website_status: lead.website_status || 'unbekannt',
       source: lead.source || '',
       notes: lead.notes || '',
+      website_check_notes: lead.website_check_notes || '',
     });
     setEditing(true);
   };
@@ -295,6 +296,10 @@ export default function LeadDetailPage() {
                   </div>
                 </div>
                 <div>
+                  <label className="block text-xs text-bd-text-muted mb-1">Web Check</label>
+                  <textarea rows={3} className="w-full text-sm" placeholder="Ergebnisse der Website-Prüfung..." value={editForm.website_check_notes} onChange={(e) => setEditForm({ ...editForm, website_check_notes: e.target.value })} />
+                </div>
+                <div>
                   <label className="block text-xs text-bd-text-muted mb-1">Notizen</label>
                   <textarea rows={3} className="w-full text-sm" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
                 </div>
@@ -394,6 +399,16 @@ export default function LeadDetailPage() {
                   </div>
                 </div>
 
+                {/* Web Check Notes */}
+                <div className="mt-4 pt-4 border-t border-bd-border">
+                  <span className="text-sm text-bd-text-muted">Web Check</span>
+                  {!readOnly ? (
+                    <WebCheckNotes leadId={id} value={lead.website_check_notes || ''} onSaved={fetchLead} />
+                  ) : (
+                    <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.website_check_notes || '–'}</p>
+                  )}
+                </div>
+
                 {lead.notes && (
                   <div className="mt-4 pt-4 border-t border-bd-border">
                     <span className="text-sm text-bd-text-muted">Notizen</span>
@@ -405,11 +420,6 @@ export default function LeadDetailPage() {
 
             <p className="text-xs text-bd-text-muted mt-4">Erstellt: {formatDate(lead.created_at)}</p>
           </div>
-
-          {/* Quick Note */}
-          {!readOnly && (
-            <QuickNote leadId={id} onAdded={fetchLead} />
-          )}
         </div>
 
         {/* Activity Timeline */}
@@ -690,18 +700,19 @@ function AddActivityModal({ leadId, open, onClose, onAdded }: {
   );
 }
 
-function QuickNote({ leadId, onAdded }: { leadId: string; onAdded: () => void }) {
-  const [note, setNote] = useState('');
+function WebCheckNotes({ leadId, value, onSaved }: { leadId: string; value: string; onSaved: () => void }) {
+  const [text, setText] = useState(value);
   const [saving, setSaving] = useState(false);
+  const changed = text !== value;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!note.trim()) return;
+  useEffect(() => { setText(value); }, [value]);
+
+  const save = async () => {
+    if (!changed) return;
     setSaving(true);
     try {
-      await api.post(`/leads/${leadId}/activities`, { type: 'notiz', description: note.trim() });
-      setNote('');
-      onAdded();
+      await api.put(`/leads/${leadId}`, { website_check_notes: text });
+      onSaved();
     } catch {
       alert('Fehler beim Speichern');
     } finally {
@@ -710,23 +721,25 @@ function QuickNote({ leadId, onAdded }: { leadId: string; onAdded: () => void })
   };
 
   return (
-    <div className="bg-bd-card rounded-bd p-4 border border-bd-border">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          placeholder="Schnelle Notiz hinzufügen..."
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="flex-1 text-sm"
-        />
-        <button
-          type="submit"
-          disabled={saving || !note.trim()}
-          className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all shrink-0"
-        >
-          {saving ? '...' : 'Notiz'}
-        </button>
-      </form>
+    <div className="mt-1">
+      <textarea
+        rows={3}
+        placeholder="Ergebnisse der Website-Prüfung..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="w-full text-sm"
+      />
+      {changed && (
+        <div className="flex justify-end mt-1">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="px-3 py-1 text-xs bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
+          >
+            {saving ? '...' : 'Speichern'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
