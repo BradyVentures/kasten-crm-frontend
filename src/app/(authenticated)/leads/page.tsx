@@ -255,7 +255,7 @@ export default function LeadsPage() {
       ),
     },
     website_checked: {
-      renderHeader: () => <SortLabel field="website_checked" label="Gepr\u00fcft" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="website_checked" label="Geprüft" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
       renderCell: (lead) => lead.website_checked
         ? <span className="text-green-400 text-sm">{'\u2713'}</span>
         : <span className="text-bd-text-muted">–</span>,
