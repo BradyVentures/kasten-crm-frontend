@@ -27,6 +27,16 @@ export default function KundenDetailPage() {
     30000
   );
 
+  const handleDeleteCustomer = async () => {
+    if (!confirm(`Kunde "${customer?.company_name}" wirklich endgültig löschen? Alle zugewiesenen Services werden ebenfalls entfernt.`)) return;
+    try {
+      await api.delete(`/customers/${id}`);
+      router.push('/kunden');
+    } catch {
+      alert('Fehler beim Löschen des Kunden');
+    }
+  };
+
   const handleRemoveService = async (csId: string) => {
     if (!confirm('Service-Zuweisung entfernen?')) return;
     await api.delete(`/customers/${id}/services/${csId}`);
@@ -58,9 +68,14 @@ export default function KundenDetailPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-2xl font-bold">{customer.company_name}</h1>
-        <button onClick={() => setShowAssign(true)} className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
-          + Service zuweisen
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowAssign(true)} className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
+            + Service zuweisen
+          </button>
+          <button onClick={handleDeleteCustomer} className="px-4 py-2 text-sm border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-all">
+            Löschen
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
