@@ -297,7 +297,7 @@ export default function LeadDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs text-bd-text-muted mb-1">Web Check</label>
-                  <textarea rows={6} className="w-full text-sm" placeholder="Ergebnisse der Website-Prüfung..." value={editForm.website_check_notes} onChange={(e) => setEditForm({ ...editForm, website_check_notes: e.target.value })} />
+                  <textarea rows={15} className="w-full text-sm" placeholder="Ergebnisse der Website-Prüfung..." value={editForm.website_check_notes} onChange={(e) => setEditForm({ ...editForm, website_check_notes: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-xs text-bd-text-muted mb-1">Notizen</label>
@@ -403,7 +403,7 @@ export default function LeadDetailPage() {
                 <div className="mt-4 pt-4 border-t border-bd-border">
                   <span className="text-sm text-bd-text-muted">Web Check</span>
                   {!readOnly ? (
-                    <InlineTextarea leadId={id} field="website_check_notes" value={lead.website_check_notes || ''} placeholder="Ergebnisse der Website-Prüfung..." onSaved={fetchLead} />
+                    <InlineTextarea leadId={id} field="website_check_notes" value={lead.website_check_notes || ''} placeholder="Ergebnisse der Website-Prüfung..." rows={15} onSaved={fetchLead} />
                   ) : (
                     <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.website_check_notes || '–'}</p>
                   )}
@@ -703,7 +703,7 @@ function AddActivityModal({ leadId, open, onClose, onAdded }: {
   );
 }
 
-function InlineTextarea({ leadId, field, value, placeholder, onSaved }: { leadId: string; field: string; value: string; placeholder: string; onSaved: () => void }) {
+function InlineTextarea({ leadId, field, value, placeholder, rows = 6, onSaved }: { leadId: string; field: string; value: string; placeholder: string; rows?: number; onSaved: () => void }) {
   const [text, setText] = useState(value);
   const [saving, setSaving] = useState(false);
   const changed = text !== value;
@@ -726,7 +726,7 @@ function InlineTextarea({ leadId, field, value, placeholder, onSaved }: { leadId
   return (
     <div className="mt-1">
       <textarea
-        rows={6}
+        rows={rows}
         placeholder={placeholder}
         value={text}
         onChange={(e) => setText(e.target.value)}
