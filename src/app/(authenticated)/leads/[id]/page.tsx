@@ -99,6 +99,16 @@ export default function LeadDetailPage() {
     fetchLead();
   };
 
+  const handleDeleteActivity = async (activityId: string) => {
+    if (!confirm('Aktivität wirklich löschen?')) return;
+    try {
+      await api.delete(`/leads/${id}/activities/${activityId}`);
+      fetchLead();
+    } catch {
+      alert('Fehler beim Löschen der Aktivität');
+    }
+  };
+
   const startEditing = () => {
     if (!lead) return;
     setEditForm({
@@ -416,11 +426,11 @@ export default function LeadDetailPage() {
 
             <div className="space-y-3 max-h-[500px] overflow-auto">
               {(activities || []).map((a) => (
-                <div key={a.id} className="flex gap-3 py-2 border-b border-bd-border last:border-0">
+                <div key={a.id} className="flex gap-3 py-2 border-b border-bd-border last:border-0 group">
                   <div className="w-6 h-6 rounded-full bg-bd-accent/10 text-bd-accent flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                     {a.user_name?.charAt(0)}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm">
                       <span className="font-medium">{a.user_name}</span>
                       <Badge className="ml-2" color="text-bd-text-secondary" bg="bg-bd-bg-secondary">
@@ -430,6 +440,15 @@ export default function LeadDetailPage() {
                     {a.description && <p className="text-xs text-bd-text-body mt-0.5">{a.description}</p>}
                     <p className="text-[11px] text-bd-text-muted mt-0.5">{formatRelative(a.created_at)}</p>
                   </div>
+                  {!readOnly && (
+                    <button
+                      onClick={() => handleDeleteActivity(a.id)}
+                      className="opacity-0 group-hover:opacity-100 text-bd-text-muted hover:text-red-400 transition-opacity shrink-0 mt-0.5 text-xs"
+                      title="Aktivität löschen"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
               {(!activities || activities.length === 0) && (
