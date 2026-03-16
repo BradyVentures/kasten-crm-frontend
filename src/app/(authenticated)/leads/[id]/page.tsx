@@ -403,18 +403,21 @@ export default function LeadDetailPage() {
                 <div className="mt-4 pt-4 border-t border-bd-border">
                   <span className="text-sm text-bd-text-muted">Web Check</span>
                   {!readOnly ? (
-                    <WebCheckNotes leadId={id} value={lead.website_check_notes || ''} onSaved={fetchLead} />
+                    <InlineTextarea leadId={id} field="website_check_notes" value={lead.website_check_notes || ''} placeholder="Ergebnisse der Website-Prüfung..." onSaved={fetchLead} />
                   ) : (
                     <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.website_check_notes || '–'}</p>
                   )}
                 </div>
 
-                {lead.notes && (
-                  <div className="mt-4 pt-4 border-t border-bd-border">
-                    <span className="text-sm text-bd-text-muted">Notizen</span>
-                    <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.notes}</p>
-                  </div>
-                )}
+                {/* Notizen */}
+                <div className="mt-4 pt-4 border-t border-bd-border">
+                  <span className="text-sm text-bd-text-muted">Notizen</span>
+                  {!readOnly ? (
+                    <InlineTextarea leadId={id} field="notes" value={lead.notes || ''} placeholder="Notizen zum Lead..." onSaved={fetchLead} />
+                  ) : (
+                    <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.notes || '–'}</p>
+                  )}
+                </div>
               </>
             )}
 
@@ -700,7 +703,7 @@ function AddActivityModal({ leadId, open, onClose, onAdded }: {
   );
 }
 
-function WebCheckNotes({ leadId, value, onSaved }: { leadId: string; value: string; onSaved: () => void }) {
+function InlineTextarea({ leadId, field, value, placeholder, onSaved }: { leadId: string; field: string; value: string; placeholder: string; onSaved: () => void }) {
   const [text, setText] = useState(value);
   const [saving, setSaving] = useState(false);
   const changed = text !== value;
@@ -711,7 +714,7 @@ function WebCheckNotes({ leadId, value, onSaved }: { leadId: string; value: stri
     if (!changed) return;
     setSaving(true);
     try {
-      await api.put(`/leads/${leadId}`, { website_check_notes: text });
+      await api.put(`/leads/${leadId}`, { [field]: text });
       onSaved();
     } catch {
       alert('Fehler beim Speichern');
@@ -724,7 +727,7 @@ function WebCheckNotes({ leadId, value, onSaved }: { leadId: string; value: stri
     <div className="mt-1">
       <textarea
         rows={3}
-        placeholder="Ergebnisse der Website-Prüfung..."
+        placeholder={placeholder}
         value={text}
         onChange={(e) => setText(e.target.value)}
         className="w-full text-sm"
