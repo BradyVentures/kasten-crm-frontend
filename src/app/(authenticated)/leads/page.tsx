@@ -20,6 +20,7 @@ function getRatingColor(rating: number | null): string {
 }
 
 type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at' | 'website_checked' | 'website_rating';
+type SortEntry = { field: SortField; order: 'asc' | 'desc' };
 
 const DEFAULT_COLUMN_ORDER = [
   'company_name', 'website_checked', 'website_rating', 'contact_person', 'phone',
@@ -66,8 +67,14 @@ export default function LeadsPage() {
     const r = saved.current.regions;
     return r ? new Set(r.split(',')) : new Set();
   });
-  const [sortBy, setSortBy] = useState<SortField>((saved.current.sort_by as SortField) || 'updated_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((saved.current.sort_order as 'asc' | 'desc') || 'desc');
+  const [sorts, setSorts] = useState<SortEntry[]>(() => {
+    const fields = (saved.current.sort_by || 'updated_at').split(',') as SortField[];
+    const orders = (saved.current.sort_order || 'desc').split(',') as ('asc' | 'desc')[];
+    return fields.map((f, i) => ({ field: f, order: orders[i] || 'desc' }));
+  });
+  // Convenience getters for backward compat
+  const sortBy = sorts[0]?.field || 'updated_at';
+  const sortOrder = sorts[0]?.order || 'desc';
 
   // Persist filter state to sessionStorage
   useEffect(() => {
@@ -79,11 +86,13 @@ export default function LeadsPage() {
     if (phoneFilter) data.phone_filter = phoneFilter;
     if (search) data.search = search;
     if (selectedRegions.size > 0) data.regions = Array.from(selectedRegions).join(',');
-    if (sortBy !== 'updated_at') data.sort_by = sortBy;
-    if (sortOrder !== 'desc') data.sort_order = sortOrder;
+    const sortByStr = sorts.map(s => s.field).join(',');
+    const sortOrderStr = sorts.map(s => s.order).join(',');
+    if (sortByStr !== 'updated_at') data.sort_by = sortByStr;
+    if (sortOrderStr !== 'desc') data.sort_order = sortOrderStr;
     if (perPage !== 50) data.per_page = perPage.toString();
     try { sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(data)); } catch {}
-  }, [statusFilter, assignedFilter, brancheFilter, websiteRatingFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, brancheFilter, websiteRatingFilter, phoneFilter, search, selectedRegions, sorts, perPage]);
 
   // Distinct values for filters
   const [branchen, setBranchen] = useState<string[]>([]);
@@ -111,11 +120,11 @@ export default function LeadsPage() {
     if (websiteRatingFilter) params.set('website_rating', websiteRatingFilter);
     if (phoneFilter) params.set('phone_filter', phoneFilter);
     if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
-    params.set('sort_by', sortBy);
-    params.set('sort_order', sortOrder);
+    params.set('sort_by', sorts.map(s => s.field).join(','));
+    params.set('sort_order', sorts.map(s => s.order).join(','));
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, brancheFilter, websiteRatingFilter, phoneFilter, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteRatingFilter, phoneFilter, selectedRegions, sorts, perPage]);
 
   const buildFilterQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -206,14 +215,26 @@ export default function LeadsPage() {
     }
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortBy === field) {
-      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      // updated_at defaults to descending (newest first), everything else ascending (A-Z)
-      setSortOrder(field === 'updated_at' ? 'desc' : 'asc');
-    }
+  const handleSort = (field: SortField, shiftKey?: boolean) => {
+    setSorts(prev => {
+      const existingIdx = prev.findIndex(s => s.field === field);
+
+      if (shiftKey) {
+        // Shift+Click: toggle existing or add as secondary sort
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = { field, order: prev[existingIdx].order === 'asc' ? 'desc' : 'asc' };
+          return updated;
+        }
+        return [...prev, { field, order: field === 'updated_at' ? 'desc' : 'asc' }];
+      }
+
+      // Normal click: single sort (toggle direction if same field)
+      if (prev.length === 1 && prev[0].field === field) {
+        return [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
+      }
+      return [{ field, order: field === 'updated_at' ? 'desc' : 'asc' }];
+    });
   };
 
   const resetFilters = () => {
@@ -247,7 +268,7 @@ export default function LeadsPage() {
   // Column definitions (keyed by id)
   const columnDefs: Record<string, { renderHeader: () => React.ReactNode; renderCell: (lead: Lead) => React.ReactNode }> = {
     company_name: {
-      renderHeader: () => <SortLabel field="company_name" label="Firma" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="company_name" label="Firma" sorts={sorts} onClick={handleSort} />,
       renderCell: (lead) => (
         <Link href={`/leads/${lead.id}`} className="font-medium hover:text-bd-accent transition-colors">
           {lead.company_name}
@@ -255,14 +276,14 @@ export default function LeadsPage() {
       ),
     },
     website_checked: {
-      renderHeader: () => <SortLabel field="website_checked" label="Geprüft" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="website_checked" label="Geprüft" sorts={sorts} onClick={handleSort} />,
       renderCell: (lead) => lead.website_checked
         ? <span className="text-green-400 text-sm">{'\u2713'}</span>
         : <span className="text-bd-text-muted">–</span>,
     },
     website_rating: {
       renderHeader: () => (
-        <SortLabel field="website_rating" label="Rating" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />
+        <SortLabel field="website_rating" label="Rating" sorts={sorts} onClick={handleSort} />
       ),
       renderCell: (lead) => lead.website_rating ? (
         <span className={`text-sm font-semibold ${getRatingColor(lead.website_rating)}`}>
@@ -271,7 +292,7 @@ export default function LeadsPage() {
       ) : <span className="text-bd-text-muted">–</span>,
     },
     contact_person: {
-      renderHeader: () => <SortLabel field="contact_person" label="Kontakt" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="contact_person" label="Kontakt" sorts={sorts} onClick={handleSort} />,
       renderCell: (lead) => <>{lead.contact_person || '–'}</>,
     },
     phone: {
@@ -286,11 +307,11 @@ export default function LeadsPage() {
         : <span className="text-red-400 text-xs">fehlt</span>,
     },
     city: {
-      renderHeader: () => <SortLabel field="city" label="Stadt" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="city" label="Stadt" sorts={sorts} onClick={handleSort} />,
       renderCell: (lead) => <>{lead.city || '–'}</>,
     },
     postal_code: {
-      renderHeader: () => <SortLabel field="postal_code" label="PLZ" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="postal_code" label="PLZ" sorts={sorts} onClick={handleSort} />,
       renderCell: (lead) => <>{lead.postal_code || '–'}</>,
     },
     branche: {
@@ -319,7 +340,7 @@ export default function LeadsPage() {
       renderCell: (lead) => <>{lead.assigned_to_name || '–'}</>,
     },
     updated_at: {
-      renderHeader: () => <SortLabel field="updated_at" label="Aktualisiert" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />,
+      renderHeader: () => <SortLabel field="updated_at" label="Aktualisiert" sorts={sorts} onClick={handleSort} />,
       renderCell: (lead) => <span className="text-xs text-bd-text-muted">{formatRelative(lead.updated_at)}</span>,
     },
   };
@@ -775,20 +796,27 @@ function RegionDropdown({ regions, regionCounts, selectedRegions, onToggleGroup,
   );
 }
 
-function SortLabel({ field, label, sortBy: sb, sortOrder: so, onClick }: {
+function SortLabel({ field, label, sorts: s, onClick }: {
   field: SortField;
   label: string;
-  sortBy: SortField;
-  sortOrder: 'asc' | 'desc';
-  onClick: (field: SortField) => void;
+  sorts: SortEntry[];
+  onClick: (field: SortField, shiftKey?: boolean) => void;
 }) {
+  const sortIdx = s.findIndex(e => e.field === field);
+  const isActive = sortIdx >= 0;
+  const order = isActive ? s[sortIdx].order : null;
+  const sortNum = s.length > 1 && isActive ? sortIdx + 1 : null;
+
   return (
     <button
       type="button"
-      onClick={() => onClick(field)}
-      className="text-xs text-bd-text-muted font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none flex items-center gap-1"
+      onClick={(e) => onClick(field, e.shiftKey)}
+      className={`text-xs font-medium uppercase tracking-wider cursor-pointer hover:text-bd-text transition-colors select-none flex items-center gap-1 ${isActive ? 'text-bd-accent' : 'text-bd-text-muted'}`}
+      title="Shift+Klick für Mehrfach-Sortierung"
     >
-      {label}{sb === field && <span>{so === 'asc' ? '\u2191' : '\u2193'}</span>}
+      {label}
+      {isActive && <span>{order === 'asc' ? '\u2191' : '\u2193'}</span>}
+      {sortNum && <span className="text-[9px] opacity-70">{sortNum}</span>}
     </button>
   );
 }
