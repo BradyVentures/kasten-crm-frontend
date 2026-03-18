@@ -121,7 +121,7 @@ export default function LeadDetailPage() {
       postal_code: lead.postal_code || '',
       city: lead.city || '',
       branche: lead.branche || '',
-      website_rating: lead.website_rating ?? '',
+      website_rating: lead.website_rating?.toString() ?? '',
       source: lead.source || '',
       notes: lead.notes || '',
       website_check_notes: lead.website_check_notes || '',
