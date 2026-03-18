@@ -439,8 +439,6 @@ function renderInline(text: string): React.ReactNode {
 // ── E-Mail Vorlagen ─────────────────────────────────────────────
 
 function EmailVorlagenTab() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
@@ -566,9 +564,7 @@ function EmailVorlagenTab() {
                           >
                             {copiedId === template.id ? 'Kopiert ✓' : 'Kopieren'}
                           </button>
-                          {isAdmin && (
-                            <>
-                              <button
+                                                    <button
                                 onClick={() => { setEditingTemplate(template); setShowCreate(true); }}
                                 className="px-2 py-1.5 text-xs text-bd-text-muted hover:text-bd-accent transition-colors"
                                 title="Bearbeiten"
@@ -582,8 +578,6 @@ function EmailVorlagenTab() {
                               >
                                 ✕
                               </button>
-                            </>
-                          )}
                         </div>
                       </div>
                       <pre className="text-sm text-bd-text-body whitespace-pre-wrap font-sans leading-relaxed bg-bd-bg-secondary rounded-lg p-3 max-h-48 overflow-auto">
