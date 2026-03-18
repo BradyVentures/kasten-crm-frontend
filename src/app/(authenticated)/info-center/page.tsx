@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
 import { useAuth } from '@/context/AuthContext';
-import { Service, Promotion } from '@/types';
+import { Service, Promotion, EmailTemplate } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
 
 interface InfoPage {
   id: string;
@@ -17,11 +18,12 @@ interface InfoPage {
   updated_at: string;
 }
 
-type Tab = 'aktionen' | 'katalog' | 'leitfaden' | 'einwaende' | 'rechner' | 'faq';
+type Tab = 'aktionen' | 'katalog' | 'leitfaden' | 'einwaende' | 'rechner' | 'faq' | 'email';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'aktionen', label: 'Aktionen' },
   { key: 'katalog', label: 'Service-Katalog' },
+  { key: 'email', label: 'E-Mail Vorlagen' },
   { key: 'leitfaden', label: 'Gesprächsleitfaden' },
   { key: 'einwaende', label: 'Einwandbehandlung' },
   { key: 'rechner', label: 'Preisrechner' },
@@ -54,6 +56,7 @@ export default function InfoCenterPage() {
 
       {activeTab === 'aktionen' && <AktionenTab />}
       {activeTab === 'katalog' && <ServiceKatalog />}
+      {activeTab === 'email' && <EmailVorlagenTab />}
       {activeTab === 'leitfaden' && <EditablePage slug="gespraechsleitfaden" />}
       {activeTab === 'einwaende' && <EditablePage slug="einwandbehandlung" />}
       {activeTab === 'rechner' && <Preisrechner />}
@@ -431,6 +434,348 @@ function renderInline(text: string): React.ReactNode {
     }
     return part;
   });
+}
+
+// ── E-Mail Vorlagen ─────────────────────────────────────────────
+
+function EmailVorlagenTab() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const { data } = await api.get('/email-templates');
+      setTemplates(data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const handleCopyBody = async (template: EmailTemplate) => {
+    try {
+      const text = template.subject
+        ? `Betreff: ${template.subject}\n\n${template.body}`
+        : template.body;
+      await navigator.clipboard.writeText(text);
+      setCopiedId(template.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      alert('Kopieren fehlgeschlagen');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Vorlage wirklich löschen?')) return;
+    try {
+      await api.delete(`/email-templates/${id}`);
+      fetchTemplates();
+    } catch {
+      alert('Fehler beim Löschen');
+    }
+  };
+
+  // Group by category
+  const categories = Array.from(new Set(templates.map(t => t.category)));
+
+  if (loading) {
+    return <p className="text-bd-text-muted text-sm">Wird geladen...</p>;
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-bd-text-muted">
+          Platzhalter wie <code className="text-bd-accent">{'{kontaktperson}'}</code>, <code className="text-bd-accent">{'{firmenname}'}</code> etc. vor dem Senden ersetzen.
+        </p>
+        <button
+          onClick={() => { setEditingTemplate(null); setShowCreate(true); }}
+          className="px-4 py-2 bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all text-sm shrink-0 ml-4"
+        >
+          + Neue Vorlage
+        </button>
+      </div>
+
+      {categories.length === 0 && (
+        <div className="bg-bd-card rounded-bd border border-bd-border p-8 text-center">
+          <p className="text-bd-text-muted text-sm">Keine E-Mail-Vorlagen vorhanden. Erstelle deine erste Vorlage!</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {categories.map(cat => {
+          const catTemplates = templates.filter(t => t.category === cat);
+          const isCollapsed = collapsedCats.has(cat);
+
+          return (
+            <div key={cat} className="bg-bd-card rounded-bd border border-bd-border overflow-hidden">
+              {/* Category Header — clickable to toggle */}
+              <button
+                onClick={() => toggleCategory(cat)}
+                className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-bd-card-hover transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs transition-transform ${isCollapsed ? '' : 'rotate-90'}`}>▶</span>
+                  <h3 className="font-heading font-semibold">{cat}</h3>
+                  <span className="text-xs text-bd-text-muted bg-bd-bg-secondary px-2 py-0.5 rounded-full">
+                    {catTemplates.length}
+                  </span>
+                </div>
+              </button>
+
+              {/* Templates in category */}
+              {!isCollapsed && (
+                <div className="border-t border-bd-border divide-y divide-bd-border">
+                  {catTemplates.map(template => (
+                    <div key={template.id} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="min-w-0">
+                          <h4 className="font-medium text-sm">{template.title}</h4>
+                          {template.subject && (
+                            <p className="text-xs text-bd-text-muted mt-0.5">
+                              Betreff: <span className="text-bd-text-secondary">{template.subject}</span>
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleCopyBody(template)}
+                            className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                              copiedId === template.id
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-bd-bg-secondary text-bd-text-secondary hover:text-bd-accent'
+                            }`}
+                          >
+                            {copiedId === template.id ? 'Kopiert ✓' : 'Kopieren'}
+                          </button>
+                          {isAdmin && (
+                            <>
+                              <button
+                                onClick={() => { setEditingTemplate(template); setShowCreate(true); }}
+                                className="px-2 py-1.5 text-xs text-bd-text-muted hover:text-bd-accent transition-colors"
+                                title="Bearbeiten"
+                              >
+                                ✎
+                              </button>
+                              <button
+                                onClick={() => handleDelete(template.id)}
+                                className="px-2 py-1.5 text-xs text-bd-text-muted hover:text-red-400 transition-colors"
+                                title="Löschen"
+                              >
+                                ✕
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <pre className="text-sm text-bd-text-body whitespace-pre-wrap font-sans leading-relaxed bg-bd-bg-secondary rounded-lg p-3 max-h-48 overflow-auto">
+                        {template.body}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <EmailTemplateModal
+        open={showCreate}
+        onClose={() => { setShowCreate(false); setEditingTemplate(null); }}
+        onSaved={fetchTemplates}
+        template={editingTemplate}
+        existingCategories={categories}
+      />
+    </div>
+  );
+}
+
+function EmailTemplateModal({
+  open, onClose, onSaved, template, existingCategories,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  template: EmailTemplate | null;
+  existingCategories: string[];
+}) {
+  const [form, setForm] = useState({
+    title: '',
+    subject: '',
+    body: '',
+    category: '',
+    newCategory: '',
+    useNewCategory: false,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const isEdit = !!template;
+
+  useEffect(() => {
+    if (open) {
+      if (template) {
+        setForm({
+          title: template.title,
+          subject: template.subject,
+          body: template.body,
+          category: template.category,
+          newCategory: '',
+          useNewCategory: false,
+        });
+      } else {
+        setForm({
+          title: '',
+          subject: '',
+          body: '',
+          category: existingCategories[0] || '',
+          newCategory: '',
+          useNewCategory: existingCategories.length === 0,
+        });
+      }
+    }
+  }, [open, template, existingCategories]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const category = form.useNewCategory ? form.newCategory.trim() : form.category;
+    if (!category) {
+      alert('Bitte Kategorie angeben');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        title: form.title,
+        subject: form.subject,
+        body: form.body,
+        category,
+      };
+      if (isEdit) {
+        await api.put(`/email-templates/${template.id}`, payload);
+      } else {
+        await api.post('/email-templates', payload);
+      }
+      onSaved();
+      onClose();
+    } catch {
+      alert('Fehler beim Speichern');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Vorlage bearbeiten' : 'Neue E-Mail-Vorlage'}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Titel *</label>
+          <input
+            required
+            className="w-full"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder="z.B. Erstkontakt nach Website-Check"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Kategorie *</label>
+          {existingCategories.length > 0 && !form.useNewCategory ? (
+            <div className="flex gap-2">
+              <select
+                className="flex-1"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              >
+                {existingCategories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, useNewCategory: true })}
+                className="px-3 py-1.5 text-xs border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors text-bd-text-secondary"
+              >
+                + Neue
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                className="flex-1"
+                value={form.newCategory}
+                onChange={(e) => setForm({ ...form, newCategory: e.target.value })}
+                placeholder="Neue Kategorie eingeben..."
+                required={form.useNewCategory}
+              />
+              {existingCategories.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, useNewCategory: false })}
+                  className="px-3 py-1.5 text-xs border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors text-bd-text-secondary"
+                >
+                  Bestehende
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Betreff</label>
+          <input
+            className="w-full"
+            value={form.subject}
+            onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            placeholder="Betreff der E-Mail (mit Platzhaltern)"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Inhalt *</label>
+          <textarea
+            required
+            rows={12}
+            className="w-full font-mono text-sm"
+            value={form.body}
+            onChange={(e) => setForm({ ...form, body: e.target.value })}
+            placeholder="E-Mail-Text mit Platzhaltern wie {kontaktperson}, {firmenname}..."
+          />
+        </div>
+
+        <p className="text-xs text-bd-text-muted">
+          Verfügbare Platzhalter: {'{firmenname}'}, {'{kontaktperson}'}, {'{website}'}, {'{mein_name}'}, {'{service_name}'}, {'{preis}'}, {'{datum}'}
+        </p>
+
+        <button
+          type="submit"
+          disabled={loading || !form.title.trim()}
+          className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
+        >
+          {loading ? 'Speichern...' : isEdit ? 'Änderungen speichern' : 'Vorlage erstellen'}
+        </button>
+      </form>
+    </Modal>
+  );
 }
 
 // ── Preisrechner ─────────────────────────────────────────────────

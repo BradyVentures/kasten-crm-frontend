@@ -216,6 +216,21 @@ export interface Todo {
   updated_at: string;
 }
 
+export interface EmailTemplate {
+  id: string;
+  title: string;
+  subject: string;
+  body: string;
+  category: string;
+  sort_order: number;
+  created_by: string | null;
+  created_by_name: string | null;
+  updated_by: string | null;
+  updated_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaginatedResponse<T> {
   total: number;
   page: number;
