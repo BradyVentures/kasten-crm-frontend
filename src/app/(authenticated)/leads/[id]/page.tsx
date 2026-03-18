@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
@@ -20,6 +20,15 @@ function getRatingColor(rating: number | null): string {
   return 'text-green-400';
 }
 
+// Fields that get auto-saved
+const AUTOSAVE_FIELDS = [
+  'company_name', 'contact_person', 'email', 'phone', 'website',
+  'address', 'postal_code', 'city', 'branche', 'website_rating', 'source',
+  'website_check_notes', 'notes',
+] as const;
+
+type AutosaveField = typeof AUTOSAVE_FIELDS[number];
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -27,11 +36,21 @@ export default function LeadDetailPage() {
   const [lead, setLead] = useState<Lead | null>(null);
   const [locked, setLocked] = useState(false);
   const [lockedByOther, setLockedByOther] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showConvert, setShowConvert] = useState(false);
+
+  // Form state — always editable
+  const [form, setForm] = useState<Record<AutosaveField, string>>({
+    company_name: '', contact_person: '', email: '', phone: '', website: '',
+    address: '', postal_code: '', city: '', branche: '', website_rating: '', source: '',
+    website_check_notes: '', notes: '',
+  });
+
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedValues = useRef<Record<string, string>>({});
+  const isInitialized = useRef(false);
 
   // Acquire lock on mount
   useEffect(() => {
@@ -53,7 +72,7 @@ export default function LeadDetailPage() {
     };
 
     acquireLock();
-    heartbeat = setInterval(acquireLock, 120000); // 2 min heartbeat
+    heartbeat = setInterval(acquireLock, 120000);
 
     return () => {
       clearInterval(heartbeat);
@@ -78,6 +97,112 @@ export default function LeadDetailPage() {
   }, [id]);
 
   useEffect(() => { fetchLead(); }, [fetchLead]);
+
+  // Initialize form from lead data
+  useEffect(() => {
+    if (!lead) return;
+    const newForm: Record<AutosaveField, string> = {
+      company_name: lead.company_name || '',
+      contact_person: lead.contact_person || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      website: lead.website || '',
+      address: lead.address || '',
+      postal_code: lead.postal_code || '',
+      city: lead.city || '',
+      branche: lead.branche || '',
+      website_rating: lead.website_rating?.toString() ?? '',
+      source: lead.source || '',
+      website_check_notes: lead.website_check_notes || '',
+      notes: lead.notes || '',
+    };
+    // Only update form if we haven't initialized yet or if data came from server
+    // (avoid overwriting user's pending edits)
+    if (!isInitialized.current) {
+      setForm(newForm);
+      lastSavedValues.current = { ...newForm };
+      isInitialized.current = true;
+    }
+  }, [lead]);
+
+  // Auto-save logic
+  const doSave = useCallback(async (currentForm: Record<AutosaveField, string>) => {
+    // Find which fields changed compared to last saved values
+    const changes: Record<string, string | number | null> = {};
+    let hasChanges = false;
+    for (const field of AUTOSAVE_FIELDS) {
+      if (currentForm[field] !== lastSavedValues.current[field]) {
+        if (field === 'website_rating') {
+          changes[field] = currentForm[field] ? Number(currentForm[field]) : null;
+        } else {
+          changes[field] = currentForm[field];
+        }
+        hasChanges = true;
+      }
+    }
+    if (!hasChanges) return;
+
+    setSaving(true);
+    setSaved(false);
+    try {
+      await api.put(`/leads/${id}`, changes);
+      // Update last saved values
+      for (const field of AUTOSAVE_FIELDS) {
+        lastSavedValues.current[field] = currentForm[field];
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      // Refresh lead to get updated_at etc.
+      const { data } = await api.get(`/leads/${id}`);
+      setLead(data);
+    } catch {
+      // Don't alert, just show error state briefly
+      console.error('Auto-save failed');
+    } finally {
+      setSaving(false);
+    }
+  }, [id]);
+
+  // Debounced auto-save on form changes
+  const updateField = useCallback((field: AutosaveField, value: string) => {
+    setForm(prev => {
+      const updated = { ...prev, [field]: value };
+
+      // Clear existing timer
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+      }
+
+      // Set new debounce timer (1.5s)
+      autoSaveTimer.current = setTimeout(() => {
+        doSave(updated);
+      }, 1500);
+
+      return updated;
+    });
+  }, [doSave]);
+
+  // Save immediately on blur (for when user tabs away)
+  const handleBlur = useCallback(() => {
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
+    // Use the latest form state
+    setForm(current => {
+      doSave(current);
+      return current;
+    });
+  }, [doSave]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+      }
+    };
+  }, []);
 
   const { data: activities } = usePolling<LeadActivity[]>(
     () => api.get(`/leads/${id}/activities`).then((r) => r.data),
@@ -106,47 +231,6 @@ export default function LeadDetailPage() {
       fetchLead();
     } catch {
       alert('Fehler beim Löschen der Aktivität');
-    }
-  };
-
-  const startEditing = () => {
-    if (!lead) return;
-    setEditForm({
-      company_name: lead.company_name || '',
-      contact_person: lead.contact_person || '',
-      email: lead.email || '',
-      phone: lead.phone || '',
-      website: lead.website || '',
-      address: lead.address || '',
-      postal_code: lead.postal_code || '',
-      city: lead.city || '',
-      branche: lead.branche || '',
-      website_rating: lead.website_rating?.toString() ?? '',
-      source: lead.source || '',
-      notes: lead.notes || '',
-      website_check_notes: lead.website_check_notes || '',
-    });
-    setEditing(true);
-  };
-
-  const cancelEditing = () => {
-    setEditing(false);
-    setEditForm({});
-  };
-
-  const saveEdit = async () => {
-    setSaving(true);
-    try {
-      await api.put(`/leads/${id}`, {
-        ...editForm,
-        website_rating: editForm.website_rating ? Number(editForm.website_rating) : null,
-      });
-      await fetchLead();
-      setEditing(false);
-    } catch {
-      alert('Fehler beim Speichern');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -232,13 +316,17 @@ export default function LeadDetailPage() {
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading font-semibold">Lead-Details</h2>
-              <div className="flex flex-col sm:flex-row gap-2">
-                {!readOnly && !editing && (
-                  <button onClick={startEditing} className="px-3 py-1.5 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors">
-                    Bearbeiten
-                  </button>
+              <div className="flex items-center gap-3">
+                <h2 className="font-heading font-semibold">Lead-Details</h2>
+                {/* Auto-save indicator */}
+                {saving && (
+                  <span className="text-xs text-bd-text-muted animate-pulse">Speichert...</span>
                 )}
+                {saved && !saving && (
+                  <span className="text-xs text-green-400">Gespeichert ✓</span>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
                 {!readOnly && (
                   <>
                     <select value={lead.status} onChange={(e) => handleStatusChange(e.target.value as LeadStatus)} className="text-sm">
@@ -257,86 +345,8 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            {editing ? (
-              /* Edit Mode */
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Firmenname *</label>
-                    <input required className="w-full text-sm" value={editForm.company_name} onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Kontaktperson</label>
-                    <input className="w-full text-sm" value={editForm.contact_person} onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">E-Mail</label>
-                    <input type="email" className="w-full text-sm" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Telefon</label>
-                    <input className="w-full text-sm" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Website</label>
-                    <input className="w-full text-sm" value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Website-Rating (1-10)</label>
-                    <select className="w-full text-sm" value={editForm.website_rating} onChange={(e) => setEditForm({ ...editForm, website_rating: e.target.value })}>
-                      <option value="">Kein Rating</option>
-                      {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                        <option key={n} value={n}>{n}/10</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Adresse</label>
-                    <input className="w-full text-sm" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">PLZ</label>
-                    <input className="w-full text-sm" value={editForm.postal_code} onChange={(e) => setEditForm({ ...editForm, postal_code: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Stadt</label>
-                    <input className="w-full text-sm" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Branche</label>
-                    <input className="w-full text-sm" value={editForm.branche} onChange={(e) => setEditForm({ ...editForm, branche: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Quelle</label>
-                    <input className="w-full text-sm" value={editForm.source} onChange={(e) => setEditForm({ ...editForm, source: e.target.value })} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-bd-text-muted mb-1">Web Check</label>
-                  <textarea rows={15} className="w-full text-sm" placeholder="Ergebnisse der Website-Prüfung..." value={editForm.website_check_notes} onChange={(e) => setEditForm({ ...editForm, website_check_notes: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-xs text-bd-text-muted mb-1">Notizen</label>
-                  <textarea rows={6} className="w-full text-sm" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={cancelEditing}
-                    className="px-4 py-2 text-sm border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors"
-                  >
-                    Abbrechen
-                  </button>
-                  <button
-                    onClick={saveEdit}
-                    disabled={saving}
-                    className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
-                  >
-                    {saving ? 'Speichern...' : 'Speichern'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* View Mode */
+            {readOnly ? (
+              /* Read-Only View */
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
@@ -367,12 +377,7 @@ export default function LeadDetailPage() {
                     <span className="text-bd-text-muted">Website</span>
                     <p className="mt-1">
                       {lead.website ? (
-                        <a
-                          href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-bd-accent hover:underline"
-                        >
+                        <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-bd-accent hover:underline">
                           {lead.website}
                         </a>
                       ) : '–'}
@@ -392,44 +397,171 @@ export default function LeadDetailPage() {
                   </div>
                   <div>
                     <span className="text-bd-text-muted">Branche</span>
-                    <p className="mt-1">
-                      {lead.branche ? (
-                        <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-bd-bg-secondary text-bd-text-secondary border border-bd-border">
-                          {lead.branche}
-                        </span>
-                      ) : '–'}
-                    </p>
+                    <p className="mt-1">{lead.branche || '–'}</p>
                   </div>
                   <div>
                     <span className="text-bd-text-muted">Website-Rating</span>
                     <p className="mt-1">
                       {lead.website_rating ? (
-                        <span className={`font-semibold ${getRatingColor(lead.website_rating)}`}>
-                          {lead.website_rating}/10
-                        </span>
+                        <span className={`font-semibold ${getRatingColor(lead.website_rating)}`}>{lead.website_rating}/10</span>
                       ) : '–'}
                     </p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-bd-border">
+                  <span className="text-sm text-bd-text-muted">Web Check</span>
+                  <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.website_check_notes || '–'}</p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-bd-border">
+                  <span className="text-sm text-bd-text-muted">Notizen</span>
+                  <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.notes || '–'}</p>
+                </div>
+              </>
+            ) : (
+              /* Always-Editable Inline Fields */
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Firmenname</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.company_name}
+                      onChange={(e) => updateField('company_name', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Firmenname"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Kontaktperson</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.contact_person}
+                      onChange={(e) => updateField('contact_person', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Kontaktperson"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">E-Mail</label>
+                    <input
+                      type="email"
+                      className="w-full text-sm"
+                      value={form.email}
+                      onChange={(e) => updateField('email', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="E-Mail"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Telefon</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.phone}
+                      onChange={(e) => updateField('phone', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Telefon"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Website</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.website}
+                      onChange={(e) => updateField('website', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Website"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Website-Rating (1-10)</label>
+                    <select
+                      className="w-full text-sm"
+                      value={form.website_rating}
+                      onChange={(e) => { updateField('website_rating', e.target.value); }}
+                      onBlur={handleBlur}
+                    >
+                      <option value="">Kein Rating</option>
+                      {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                        <option key={n} value={n}>{n}/10</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Adresse</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.address}
+                      onChange={(e) => updateField('address', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Adresse"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">PLZ</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.postal_code}
+                      onChange={(e) => updateField('postal_code', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="PLZ"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Stadt</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.city}
+                      onChange={(e) => updateField('city', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Stadt"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Branche</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.branche}
+                      onChange={(e) => updateField('branche', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Branche"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-bd-text-muted mb-1">Quelle</label>
+                    <input
+                      className="w-full text-sm"
+                      value={form.source}
+                      onChange={(e) => updateField('source', e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Quelle"
+                    />
                   </div>
                 </div>
 
                 {/* Web Check Notes */}
                 <div className="mt-4 pt-4 border-t border-bd-border">
-                  <span className="text-sm text-bd-text-muted">Web Check</span>
-                  {!readOnly ? (
-                    <InlineTextarea leadId={id} field="website_check_notes" value={lead.website_check_notes || ''} placeholder="Ergebnisse der Website-Prüfung..." rows={15} onSaved={fetchLead} />
-                  ) : (
-                    <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.website_check_notes || '–'}</p>
-                  )}
+                  <label className="block text-xs text-bd-text-muted mb-1">Web Check</label>
+                  <textarea
+                    rows={15}
+                    className="w-full text-sm"
+                    placeholder="Ergebnisse der Website-Prüfung..."
+                    value={form.website_check_notes}
+                    onChange={(e) => updateField('website_check_notes', e.target.value)}
+                    onBlur={handleBlur}
+                  />
                 </div>
 
                 {/* Notizen */}
                 <div className="mt-4 pt-4 border-t border-bd-border">
-                  <span className="text-sm text-bd-text-muted">Notizen</span>
-                  {!readOnly ? (
-                    <InlineTextarea leadId={id} field="notes" value={lead.notes || ''} placeholder="Notizen zum Lead..." onSaved={fetchLead} />
-                  ) : (
-                    <p className="mt-1 text-sm text-bd-text-body whitespace-pre-wrap">{lead.notes || '–'}</p>
-                  )}
+                  <label className="block text-xs text-bd-text-muted mb-1">Notizen</label>
+                  <textarea
+                    rows={6}
+                    className="w-full text-sm"
+                    placeholder="Notizen zum Lead..."
+                    value={form.notes}
+                    onChange={(e) => updateField('notes', e.target.value)}
+                    onBlur={handleBlur}
+                  />
                 </div>
               </>
             )}
@@ -713,49 +845,5 @@ function AddActivityModal({ leadId, open, onClose, onAdded }: {
         </button>
       </form>
     </Modal>
-  );
-}
-
-function InlineTextarea({ leadId, field, value, placeholder, rows = 6, onSaved }: { leadId: string; field: string; value: string; placeholder: string; rows?: number; onSaved: () => void }) {
-  const [text, setText] = useState(value);
-  const [saving, setSaving] = useState(false);
-  const changed = text !== value;
-
-  useEffect(() => { setText(value); }, [value]);
-
-  const save = async () => {
-    if (!changed) return;
-    setSaving(true);
-    try {
-      await api.put(`/leads/${leadId}`, { [field]: text });
-      onSaved();
-    } catch {
-      alert('Fehler beim Speichern');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="mt-1">
-      <textarea
-        rows={rows}
-        placeholder={placeholder}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        className="w-full text-sm"
-      />
-      {changed && (
-        <div className="flex justify-end mt-1">
-          <button
-            onClick={save}
-            disabled={saving}
-            className="px-3 py-1 text-xs bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 disabled:opacity-50 transition-all"
-          >
-            {saving ? '...' : 'Speichern'}
-          </button>
-        </div>
-      )}
-    </div>
   );
 }
