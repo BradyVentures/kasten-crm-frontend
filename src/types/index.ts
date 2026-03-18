@@ -198,6 +198,26 @@ export interface Document {
   updated_at: string;
 }
 
+export type TodoStatus = 'offen' | 'erledigt';
+
+export interface Todo {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TodoStatus;
+  due_date: string | null;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_service_id: string | null;
+  service_name: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaginatedResponse<T> {
   total: number;
   page: number;

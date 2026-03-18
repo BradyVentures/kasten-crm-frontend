@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
-import { Customer, Service, Promotion } from '@/types';
+import { Customer, Service, Promotion, Todo } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -14,13 +14,22 @@ export default function KundenDetailPage() {
   const router = useRouter();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showAssign, setShowAssign] = useState(false);
+  const [showCreateTodo, setShowCreateTodo] = useState(false);
+  const [customerTodos, setCustomerTodos] = useState<Todo[]>([]);
 
   const fetchCustomer = useCallback(async () => {
     const { data } = await api.get(`/customers/${id}`);
     setCustomer(data);
   }, [id]);
 
-  useEffect(() => { fetchCustomer(); }, [fetchCustomer]);
+  const fetchTodos = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/todos?customer_id=${id}&status=offen`);
+      setCustomerTodos(data);
+    } catch { /* ignore */ }
+  }, [id]);
+
+  useEffect(() => { fetchCustomer(); fetchTodos(); }, [fetchCustomer, fetchTodos]);
 
   const { data: services } = usePolling<Service[]>(
     () => api.get('/services').then((r) => r.data),
@@ -71,6 +80,9 @@ export default function KundenDetailPage() {
         <div className="flex gap-2">
           <button onClick={() => setShowAssign(true)} className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
             + Service zuweisen
+          </button>
+          <button onClick={() => setShowCreateTodo(true)} className="px-4 py-2 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all">
+            + Todo
           </button>
           <button onClick={handleDeleteCustomer} className="px-4 py-2 text-sm border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-all">
             Löschen
@@ -193,6 +205,39 @@ export default function KundenDetailPage() {
             <p className="text-2xl font-bold text-bd-accent">{formatCurrency(totalCommission)}</p>
             <p className="text-xs text-bd-text-muted mt-1">Gesamte Verkaufsprovision</p>
           </div>
+
+          {/* Customer Todos */}
+          <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading font-semibold">Offene Todos</h2>
+              <span className="text-xs text-bd-text-muted">{customerTodos.length}</span>
+            </div>
+            {customerTodos.length > 0 ? (
+              <div className="space-y-2">
+                {customerTodos.map((todo) => (
+                  <div key={todo.id} className="flex items-start gap-2 py-1.5 border-b border-bd-border last:border-0">
+                    <button
+                      onClick={async () => {
+                        await api.put(`/todos/${todo.id}`, { status: 'erledigt' });
+                        fetchTodos();
+                      }}
+                      className="w-4 h-4 rounded border border-bd-border hover:border-bd-accent shrink-0 mt-0.5 transition-colors"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">{todo.title}</p>
+                      {todo.due_date && (
+                        <p className={`text-[11px] mt-0.5 ${new Date(todo.due_date) < new Date() ? 'text-red-400' : 'text-bd-text-muted'}`}>
+                          Fällig: {formatDate(todo.due_date)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-bd-text-muted">Keine offenen Todos.</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -203,6 +248,16 @@ export default function KundenDetailPage() {
         customerId={id}
         services={services || []}
         onAssigned={fetchCustomer}
+      />
+
+      {/* Create Todo Modal */}
+      <CreateTodoFromCustomerModal
+        open={showCreateTodo}
+        onClose={() => setShowCreateTodo(false)}
+        customerId={id}
+        customerName={customer.company_name}
+        customerServices={(customer.services || []).map((s) => ({ id: s.id, service_name: s.service_name }))}
+        onCreated={() => { fetchTodos(); }}
       />
     </div>
   );
@@ -411,6 +466,90 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
 
         <button type="submit" disabled={loading || !serviceId} className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all">
           {loading ? 'Zuweisen...' : 'Service zuweisen'}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
+function CreateTodoFromCustomerModal({
+  open,
+  onClose,
+  customerId,
+  customerName,
+  customerServices,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  customerId: string;
+  customerName: string;
+  customerServices: { id: string; service_name: string }[];
+  onCreated: () => void;
+}) {
+  const [form, setForm] = useState({ title: '', description: '', due_date: '', assigned_to: '', customer_service_id: '' });
+  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({ title: '', description: '', due_date: '', assigned_to: '', customer_service_id: '' });
+    api.get('/users').then((r) => setUsers(r.data.filter((u: { is_active: boolean }) => u.is_active))).catch(() => {});
+  }, [open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/todos', { ...form, customer_id: customerId });
+      onCreated();
+      onClose();
+    } catch {
+      alert('Fehler beim Erstellen des Todos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Todo erstellen">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Kunde</label>
+          <p className="text-sm font-medium">{customerName}</p>
+        </div>
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Titel *</label>
+          <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder="Was muss erledigt werden?" className="w-full" />
+        </div>
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Beschreibung</label>
+          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Weitere Details..." className="w-full" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Fällig am</label>
+            <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Zuweisen an</label>
+            <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} className="w-full">
+              <option value="">Nicht zugewiesen</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+        </div>
+        {customerServices.length > 0 && (
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Service (optional)</label>
+            <select value={form.customer_service_id} onChange={(e) => setForm({ ...form, customer_service_id: e.target.value })} className="w-full">
+              <option value="">Kein spezifischer Service</option>
+              {customerServices.map((s) => <option key={s.id} value={s.id}>{s.service_name}</option>)}
+            </select>
+          </div>
+        )}
+        <button type="submit" disabled={loading || !form.title.trim()} className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all">
+          {loading ? 'Erstelle...' : 'Todo erstellen'}
         </button>
       </form>
     </Modal>
