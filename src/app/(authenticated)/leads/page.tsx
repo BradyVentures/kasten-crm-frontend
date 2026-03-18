@@ -4,25 +4,25 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
-import { Lead, LeadLock, User, Region, WebsiteStatus } from '@/types';
+import { Lead, LeadLock, User, Region } from '@/types';
 import { STATUS_CONFIG, formatRelative } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
 const ALL_STATUSES = ['neu', 'kontaktiert', 'qualifiziert', 'angebot', 'gewonnen', 'verloren'] as const;
 
-const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: string; bg: string }> = {
-  keine: { label: 'Keine', color: 'text-red-400', bg: 'bg-red-500/15' },
-  veraltet: { label: 'Veraltet', color: 'text-orange-400', bg: 'bg-orange-500/15' },
-  einfach: { label: 'Einfach', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
-  ok: { label: 'OK', color: 'text-green-400', bg: 'bg-green-500/15' },
-  unbekannt: { label: 'Unbekannt', color: 'text-bd-text-muted', bg: 'bg-bd-bg-secondary' },
-};
+function getRatingColor(rating: number | null): string {
+  if (!rating) return 'text-bd-text-muted';
+  if (rating <= 3) return 'text-red-400';
+  if (rating <= 5) return 'text-orange-400';
+  if (rating <= 7) return 'text-yellow-400';
+  return 'text-green-400';
+}
 
-type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at' | 'website_checked';
+type SortField = 'company_name' | 'contact_person' | 'city' | 'postal_code' | 'updated_at' | 'website_checked' | 'website_rating';
 
 const DEFAULT_COLUMN_ORDER = [
-  'company_name', 'website_checked', 'website_status', 'contact_person', 'phone',
+  'company_name', 'website_checked', 'website_rating', 'contact_person', 'phone',
   'city', 'postal_code', 'branche', 'status', 'assigned_to', 'updated_at',
 ];
 
@@ -57,7 +57,7 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState(saved.current.status || '');
   const [assignedFilter, setAssignedFilter] = useState(saved.current.assigned_to || '');
   const [brancheFilter, setBrancheFilter] = useState(saved.current.branche || '');
-  const [websiteStatusFilter, setWebsiteStatusFilter] = useState(saved.current.website_status || '');
+  const [websiteRatingFilter, setWebsiteRatingFilter] = useState(saved.current.website_rating || '');
   const [phoneFilter, setPhoneFilter] = useState(saved.current.phone_filter || '');
   const [search, setSearch] = useState(saved.current.search || '');
   const [showCreate, setShowCreate] = useState(false);
@@ -75,7 +75,7 @@ export default function LeadsPage() {
     if (statusFilter) data.status = statusFilter;
     if (assignedFilter) data.assigned_to = assignedFilter;
     if (brancheFilter) data.branche = brancheFilter;
-    if (websiteStatusFilter) data.website_status = websiteStatusFilter;
+    if (websiteRatingFilter) data.website_rating = websiteRatingFilter;
     if (phoneFilter) data.phone_filter = phoneFilter;
     if (search) data.search = search;
     if (selectedRegions.size > 0) data.regions = Array.from(selectedRegions).join(',');
@@ -83,7 +83,7 @@ export default function LeadsPage() {
     if (sortOrder !== 'desc') data.sort_order = sortOrder;
     if (perPage !== 50) data.per_page = perPage.toString();
     try { sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(data)); } catch {}
-  }, [statusFilter, assignedFilter, brancheFilter, websiteStatusFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, brancheFilter, websiteRatingFilter, phoneFilter, search, selectedRegions, sortBy, sortOrder, perPage]);
 
   // Distinct values for filters
   const [branchen, setBranchen] = useState<string[]>([]);
@@ -108,14 +108,14 @@ export default function LeadsPage() {
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
     if (brancheFilter) params.set('branche', brancheFilter);
-    if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
+    if (websiteRatingFilter) params.set('website_rating', websiteRatingFilter);
     if (phoneFilter) params.set('phone_filter', phoneFilter);
     if (selectedRegions.size > 0) params.set('regions', Array.from(selectedRegions).join(','));
     params.set('sort_by', sortBy);
     params.set('sort_order', sortOrder);
     params.set('per_page', perPage.toString());
     return params.toString();
-  }, [statusFilter, assignedFilter, search, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, sortBy, sortOrder, perPage]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteRatingFilter, phoneFilter, selectedRegions, sortBy, sortOrder, perPage]);
 
   const buildFilterQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -123,10 +123,10 @@ export default function LeadsPage() {
     if (assignedFilter) params.set('assigned_to', assignedFilter);
     if (search) params.set('search', search);
     if (brancheFilter) params.set('branche', brancheFilter);
-    if (websiteStatusFilter) params.set('website_status', websiteStatusFilter);
+    if (websiteRatingFilter) params.set('website_rating', websiteRatingFilter);
     if (phoneFilter) params.set('phone_filter', phoneFilter);
     return params.toString();
-  }, [statusFilter, assignedFilter, search, brancheFilter, websiteStatusFilter, phoneFilter]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteRatingFilter, phoneFilter]);
 
   const { data: leadsData, refetch } = usePolling(
     () => api.get(`/leads?${buildQuery()}`).then((r) => r.data),
@@ -189,7 +189,7 @@ export default function LeadsPage() {
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter, assignedFilter, search, brancheFilter, websiteStatusFilter, phoneFilter, selectedRegions, perPage]);
+  }, [statusFilter, assignedFilter, search, brancheFilter, websiteRatingFilter, phoneFilter, selectedRegions, perPage]);
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -220,13 +220,13 @@ export default function LeadsPage() {
     setStatusFilter('');
     setAssignedFilter('');
     setBrancheFilter('');
-    setWebsiteStatusFilter('');
+    setWebsiteRatingFilter('');
     setPhoneFilter('');
     setSearch('');
     setSelectedRegions(new Set());
   };
 
-  const hasActiveFilters = statusFilter || assignedFilter || brancheFilter || websiteStatusFilter || phoneFilter || search || selectedRegions.size > 0;
+  const hasActiveFilters = statusFilter || assignedFilter || brancheFilter || websiteRatingFilter || phoneFilter || search || selectedRegions.size > 0;
 
   // Column order (draggable)
   const [columnOrder, setColumnOrder] = useState<string[]>(loadColumnOrder);
@@ -260,20 +260,14 @@ export default function LeadsPage() {
         ? <span className="text-green-400 text-sm">{'\u2713'}</span>
         : <span className="text-bd-text-muted">–</span>,
     },
-    website_status: {
+    website_rating: {
       renderHeader: () => (
-        <ColumnFilterTh label="Web-Status" value={websiteStatusFilter} onChange={setWebsiteStatusFilter} multi options={[
-          { value: 'keine', label: 'Keine', color: 'text-red-400' },
-          { value: 'veraltet', label: 'Veraltet', color: 'text-orange-400' },
-          { value: 'einfach', label: 'Einfach', color: 'text-yellow-400' },
-          { value: 'ok', label: 'OK', color: 'text-green-400' },
-          { value: 'unbekannt', label: 'Unbekannt', color: 'text-bd-text-muted' },
-        ]} />
+        <SortLabel field="website_rating" label="Rating" sortBy={sortBy} sortOrder={sortOrder} onClick={handleSort} />
       ),
-      renderCell: (lead) => lead.website_status ? (
-        <Badge color={WEBSITE_STATUS_CONFIG[lead.website_status].color} bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}>
-          {WEBSITE_STATUS_CONFIG[lead.website_status].label}
-        </Badge>
+      renderCell: (lead) => lead.website_rating ? (
+        <span className={`text-sm font-semibold ${getRatingColor(lead.website_rating)}`}>
+          {lead.website_rating}/10
+        </span>
       ) : <span className="text-bd-text-muted">–</span>,
     },
     contact_person: {

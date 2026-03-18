@@ -5,20 +5,20 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { usePolling } from '@/hooks/usePolling';
 import { useAuth } from '@/context/AuthContext';
-import { Lead, LeadActivity, User, LeadStatus, WebsiteStatus } from '@/types';
+import { Lead, LeadActivity, User, LeadStatus } from '@/types';
 import { STATUS_CONFIG, ACTIVITY_LABELS, formatRelative, formatDate } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
 const ALL_STATUSES: LeadStatus[] = ['neu', 'kontaktiert', 'qualifiziert', 'angebot', 'gewonnen', 'verloren'];
 
-const WEBSITE_STATUS_CONFIG: Record<WebsiteStatus, { label: string; color: string; bg: string }> = {
-  keine: { label: 'Keine Website', color: 'text-red-400', bg: 'bg-red-500/15' },
-  veraltet: { label: 'Veraltet', color: 'text-orange-400', bg: 'bg-orange-500/15' },
-  einfach: { label: 'Einfach', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
-  ok: { label: 'OK', color: 'text-green-400', bg: 'bg-green-500/15' },
-  unbekannt: { label: 'Unbekannt', color: 'text-bd-text-muted', bg: 'bg-bd-bg-secondary' },
-};
+function getRatingColor(rating: number | null): string {
+  if (!rating) return 'text-bd-text-muted';
+  if (rating <= 3) return 'text-red-400';
+  if (rating <= 5) return 'text-orange-400';
+  if (rating <= 7) return 'text-yellow-400';
+  return 'text-green-400';
+}
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -121,7 +121,7 @@ export default function LeadDetailPage() {
       postal_code: lead.postal_code || '',
       city: lead.city || '',
       branche: lead.branche || '',
-      website_status: lead.website_status || 'unbekannt',
+      website_rating: lead.website_rating ?? '',
       source: lead.source || '',
       notes: lead.notes || '',
       website_check_notes: lead.website_check_notes || '',
@@ -139,7 +139,7 @@ export default function LeadDetailPage() {
     try {
       await api.put(`/leads/${id}`, {
         ...editForm,
-        website_status: editForm.website_status || 'unbekannt',
+        website_rating: editForm.website_rating ? Number(editForm.website_rating) : null,
       });
       await fetchLead();
       setEditing(false);
@@ -282,10 +282,11 @@ export default function LeadDetailPage() {
                     <input className="w-full text-sm" value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} />
                   </div>
                   <div>
-                    <label className="block text-xs text-bd-text-muted mb-1">Website-Status</label>
-                    <select className="w-full text-sm" value={editForm.website_status} onChange={(e) => setEditForm({ ...editForm, website_status: e.target.value })}>
-                      {Object.entries(WEBSITE_STATUS_CONFIG).map(([val, cfg]) => (
-                        <option key={val} value={val}>{cfg.label}</option>
+                    <label className="block text-xs text-bd-text-muted mb-1">Website-Rating (1-10)</label>
+                    <select className="w-full text-sm" value={editForm.website_rating} onChange={(e) => setEditForm({ ...editForm, website_rating: e.target.value })}>
+                      <option value="">Kein Rating</option>
+                      {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                        <option key={n} value={n}>{n}/10</option>
                       ))}
                     </select>
                   </div>
@@ -400,15 +401,12 @@ export default function LeadDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <span className="text-bd-text-muted">Website-Status</span>
+                    <span className="text-bd-text-muted">Website-Rating</span>
                     <p className="mt-1">
-                      {lead.website_status ? (
-                        <Badge
-                          color={WEBSITE_STATUS_CONFIG[lead.website_status].color}
-                          bg={WEBSITE_STATUS_CONFIG[lead.website_status].bg}
-                        >
-                          {WEBSITE_STATUS_CONFIG[lead.website_status].label}
-                        </Badge>
+                      {lead.website_rating ? (
+                        <span className={`font-semibold ${getRatingColor(lead.website_rating)}`}>
+                          {lead.website_rating}/10
+                        </span>
                       ) : '–'}
                     </p>
                   </div>

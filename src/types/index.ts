@@ -13,8 +13,6 @@ export interface User {
   created_at: string;
 }
 
-export type WebsiteStatus = 'keine' | 'veraltet' | 'einfach' | 'ok' | 'unbekannt';
-
 export interface Lead {
   id: string;
   company_name: string;
@@ -27,7 +25,7 @@ export interface Lead {
   postal_code: string | null;
   bundesland: string | null;
   branche: string | null;
-  website_status: WebsiteStatus | null;
+  website_rating: number | null;
   website_checked: boolean;
   website_check_notes: string | null;
   status: LeadStatus;
