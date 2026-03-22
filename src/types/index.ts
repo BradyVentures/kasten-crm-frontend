@@ -300,6 +300,8 @@ export interface Project {
   template_id: string | null;
   estimated_start: string | null;
   estimated_end: string | null;
+  actual_start: string | null;
+  actual_end: string | null;
   total_setup_cost_internal: number;
   total_setup_price_customer: number;
   total_monthly_cost_internal: number;
@@ -340,11 +342,13 @@ export interface ProjectDocument {
   project_id: string;
   type: ProjectDocumentType;
   title: string;
-  content_html: string | null;
+  generated_html: string | null;
+  template_data: Record<string, unknown> | null;
   version: number;
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectActivity {

@@ -15,7 +15,7 @@ import { formatCurrency, formatDate, formatRelative } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 
-// ─── Status config ──────────────────────────────────────────
+// ─── Config Maps ──────────────────────────────────────────────
 
 const PROJECT_STATUSES: ProjectStatus[] = [
   'entwurf', 'angebot', 'verhandlung', 'beauftragt', 'in_umsetzung', 'live', 'pausiert', 'abgebrochen',
@@ -32,14 +32,16 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bg: s
   abgebrochen:   { label: 'Abgebrochen',   color: 'text-red-400',     bg: 'bg-red-400/10' },
 };
 
-const MODULE_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+const MODULE_STATUS_CONFIG: Record<ModuleStatus, { label: string; color: string; bg: string }> = {
   geplant:   { label: 'Geplant',   color: 'text-gray-400',   bg: 'bg-gray-400/10' },
   in_arbeit: { label: 'In Arbeit', color: 'text-blue-400',   bg: 'bg-blue-400/10' },
   fertig:    { label: 'Fertig',    color: 'text-green-400',  bg: 'bg-green-400/10' },
   pausiert:  { label: 'Pausiert',  color: 'text-orange-400', bg: 'bg-orange-400/10' },
 };
 
-const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+const ALL_MODULE_STATUSES: ModuleStatus[] = ['geplant', 'in_arbeit', 'fertig', 'pausiert'];
+
+const CATEGORY_CONFIG: Record<ModuleCategory, { label: string; color: string; bg: string }> = {
   crm:              { label: 'CRM',              color: 'text-blue-400',    bg: 'bg-blue-400/10' },
   ki_chatbot:       { label: 'KI-Chatbot',       color: 'text-purple-400',  bg: 'bg-purple-400/10' },
   ki_telefon:       { label: 'KI-Telefon',       color: 'text-violet-400',  bg: 'bg-violet-400/10' },
@@ -51,11 +53,19 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string
   sonstiges:        { label: 'Sonstiges',        color: 'text-gray-400',    bg: 'bg-gray-400/10' },
 };
 
-const COMPLEXITY_LABELS: Record<string, string> = {
-  niedrig: 'Niedrig', mittel: 'Mittel', hoch: 'Hoch',
+const ALL_CATEGORIES: ModuleCategory[] = [
+  'crm', 'ki_chatbot', 'ki_telefon', 'automatisierung', 'routenplanung', 'website', 'seo_marketing', 'analytics', 'sonstiges',
+];
+
+const COMPLEXITY_CONFIG: Record<ModuleComplexity, string> = {
+  niedrig: 'Niedrig',
+  mittel: 'Mittel',
+  hoch: 'Hoch',
 };
 
-const DOC_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+const ALL_COMPLEXITIES: ModuleComplexity[] = ['niedrig', 'mittel', 'hoch'];
+
+const DOC_TYPE_CONFIG: Record<ProjectDocumentType, { label: string; color: string; bg: string }> = {
   briefing:         { label: 'Briefing',          color: 'text-blue-400',   bg: 'bg-blue-400/10' },
   angebot:          { label: 'Angebot',           color: 'text-green-400',  bg: 'bg-green-400/10' },
   vertrag:          { label: 'Vertrag',           color: 'text-purple-400', bg: 'bg-purple-400/10' },
@@ -65,20 +75,24 @@ const DOC_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string
   technische_doku:  { label: 'Technische Doku',   color: 'text-gray-400',   bg: 'bg-gray-400/10' },
 };
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  erstellt: '✦',
-  status_aenderung: '↻',
+const ALL_DOC_TYPES: ProjectDocumentType[] = [
+  'briefing', 'angebot', 'kalkulation', 'vertrag', 'av_vertrag', 'statusbericht', 'technische_doku',
+];
+
+const ACTIVITY_ICONS: Record<ProjectActivityType, string> = {
+  erstellt: '\u2726',
+  status_aenderung: '\u21BB',
   modul_hinzugefuegt: '+',
-  modul_aktualisiert: '✎',
-  dokument_erstellt: '◫',
-  notiz: '✎',
-  meeting: '◇',
-  kalkulation_aktualisiert: '⟳',
+  modul_aktualisiert: '\u270E',
+  dokument_erstellt: '\u25EB',
+  notiz: '\u270E',
+  meeting: '\u25C7',
+  kalkulation_aktualisiert: '\u27F3',
 };
 
 type TabId = 'uebersicht' | 'module' | 'dokumente' | 'aktivitaeten';
 
-// ─── Main Component ─────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────────
 
 export default function ProjektDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -95,14 +109,22 @@ export default function ProjektDetailPage() {
 
   // Modals
   const [showAddModule, setShowAddModule] = useState(false);
-  const [showAddDocument, setShowAddDocument] = useState(false);
+  const [editingModule, setEditingModule] = useState<ProjectModule | null>(null);
+  const [showGenerateDoc, setShowGenerateDoc] = useState(false);
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null);
 
   // Note form
   const [noteText, setNoteText] = useState('');
   const [addingNote, setAddingNote] = useState(false);
 
-  // ─── Data fetching ──────────────────────────────────────
+  // Quick action feedback
+  const [quickActionLoading, setQuickActionLoading] = useState<string | null>(null);
+  const [quickActionSuccess, setQuickActionSuccess] = useState<string | null>(null);
+
+  // Recalculate
+  const [recalculating, setRecalculating] = useState(false);
+
+  // ─── Data fetching ──────────────────────────────────────────
 
   const fetchProject = useCallback(async () => {
     const { data } = await api.get(`/projects/${id}`);
@@ -133,9 +155,12 @@ export default function ProjektDetailPage() {
   }, [fetchProject, fetchModules, fetchDocuments, fetchActivities]);
 
   // Poll project data
-  usePolling(() => api.get(`/projects/${id}`).then((r) => { setProject(r.data); return r.data; }), 10000);
+  usePolling(
+    () => api.get(`/projects/${id}`).then((r) => { setProject(r.data); return r.data; }),
+    10000,
+  );
 
-  // ─── Actions ────────────────────────────────────────────
+  // ─── Actions ──────────────────────────────────────────────────
 
   const handleStatusChange = async (status: ProjectStatus) => {
     try {
@@ -167,6 +192,50 @@ export default function ProjektDetailPage() {
     }
   };
 
+  const handleRecalculate = async () => {
+    setRecalculating(true);
+    try {
+      await api.post(`/projects/${id}/recalculate`);
+      fetchProject();
+      fetchModules();
+    } catch {
+      alert('Fehler beim Neuberechnen');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
+  const handleQuickAction = async (type: ProjectDocumentType) => {
+    const titleMap: Record<ProjectDocumentType, string> = {
+      briefing: 'Meeting-Briefing',
+      angebot: 'Kundenangebot',
+      kalkulation: 'Interne Kalkulation',
+      vertrag: 'Dienstleistungsvertrag',
+      av_vertrag: 'AV-Vertrag',
+      statusbericht: 'Statusbericht',
+      technische_doku: 'Technische Dokumentation',
+    };
+    setQuickActionLoading(type);
+    setQuickActionSuccess(null);
+    try {
+      await api.post(`/projects/${id}/documents/generate`, {
+        type,
+        title: `${titleMap[type]} \u2014 ${project?.title || ''}`,
+      });
+      setQuickActionSuccess(type);
+      fetchDocuments();
+      fetchActivities();
+      setTimeout(() => {
+        setQuickActionSuccess(null);
+        setActiveTab('dokumente');
+      }, 2000);
+    } catch {
+      alert('Fehler beim Generieren des Dokuments');
+    } finally {
+      setQuickActionLoading(null);
+    }
+  };
+
   const handleDeleteModule = async (moduleId: string) => {
     if (!confirm('Modul wirklich entfernen?')) return;
     try {
@@ -176,6 +245,16 @@ export default function ProjektDetailPage() {
       fetchActivities();
     } catch {
       alert('Fehler beim Löschen');
+    }
+  };
+
+  const handleModuleStatusChange = async (moduleId: string, status: ModuleStatus) => {
+    try {
+      await api.put(`/projects/${id}/modules/${moduleId}`, { status });
+      fetchModules();
+      fetchActivities();
+    } catch {
+      alert('Fehler beim Aktualisieren');
     }
   };
 
@@ -195,7 +274,7 @@ export default function ProjektDetailPage() {
     setAddingNote(true);
     try {
       await api.post(`/projects/${id}/activities`, {
-        type: 'notiz',
+        type: 'notiz' as ProjectActivityType,
         description: noteText.trim(),
       });
       setNoteText('');
@@ -207,29 +286,7 @@ export default function ProjektDetailPage() {
     }
   };
 
-  const handleGenerateDocument = async (type: ProjectDocumentType) => {
-    const titleMap: Record<string, string> = {
-      briefing: 'Meeting-Briefing',
-      angebot: 'Kundenangebot',
-      kalkulation: 'Interne Kalkulation',
-      vertrag: 'Dienstleistungsvertrag',
-      av_vertrag: 'AV-Vertrag',
-      statusbericht: 'Statusbericht',
-      technische_doku: 'Technische Dokumentation',
-    };
-    try {
-      await api.post(`/projects/${id}/documents/generate`, {
-        type,
-        title: `${titleMap[type] || type} — ${project?.title || ''}`,
-      });
-      fetchDocuments();
-      fetchActivities();
-    } catch {
-      alert('Fehler beim Generieren des Dokuments');
-    }
-  };
-
-  // ─── Computed ───────────────────────────────────────────
+  // ─── Loading state ────────────────────────────────────────────
 
   if (!project) {
     return (
@@ -238,6 +295,8 @@ export default function ProjektDetailPage() {
       </div>
     );
   }
+
+  // ─── Computed values ──────────────────────────────────────────
 
   const setupIntern = Number(project.total_setup_cost_internal || 0);
   const setupKunde = Number(project.total_setup_price_customer || 0);
@@ -248,6 +307,26 @@ export default function ProjektDetailPage() {
   const monthlyMarge = monthlyKunde > 0 ? ((monthlyKunde - monthlyIntern) / monthlyKunde) * 100 : 0;
 
   const jahreswert = monthlyKunde * 12;
+  const jahreswertIntern = monthlyIntern * 12;
+  const gesamtwert = setupKunde + jahreswert;
+  const gesamtwertIntern = setupIntern + jahreswertIntern;
+  const gesamtMarge = gesamtwert > 0 ? ((gesamtwert - gesamtwertIntern) / gesamtwert) * 100 : 0;
+
+  // Module totals for summary row
+  const sortedModules = [...modules].sort(
+    (a, b) => (a.phase || 99) - (b.phase || 99) || a.sort_order - b.sort_order,
+  );
+
+  const moduleSums = modules.reduce(
+    (acc, m) => ({
+      setup_cost_internal: acc.setup_cost_internal + Number(m.setup_cost_internal || 0),
+      setup_price_customer: acc.setup_price_customer + Number(m.setup_price_customer || 0),
+      monthly_cost_internal: acc.monthly_cost_internal + Number(m.monthly_cost_internal || 0),
+      monthly_price_customer: acc.monthly_price_customer + Number(m.monthly_price_customer || 0),
+      estimated_hours: acc.estimated_hours + Number(m.estimated_hours || 0),
+    }),
+    { setup_cost_internal: 0, setup_price_customer: 0, monthly_cost_internal: 0, monthly_price_customer: 0, estimated_hours: 0 },
+  );
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'uebersicht', label: 'Übersicht' },
@@ -256,10 +335,15 @@ export default function ProjektDetailPage() {
     { id: 'aktivitaeten', label: 'Aktivitäten' },
   ];
 
+  // ─── Render ────────────────────────────────────────────────────
+
   return (
     <div>
       {/* Back */}
-      <button onClick={() => router.push('/projekte')} className="text-sm text-bd-text-muted hover:text-bd-text mb-4 block">
+      <button
+        onClick={() => router.push('/projekte')}
+        className="text-sm text-bd-text-muted hover:text-bd-text mb-4 block"
+      >
         &larr; Zur&uuml;ck zu Projekte
       </button>
 
@@ -271,7 +355,7 @@ export default function ProjektDetailPage() {
             {STATUS_CONFIG[project.status].label}
           </Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <select
             value={project.status}
             onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
@@ -319,7 +403,7 @@ export default function ProjektDetailPage() {
         ))}
       </div>
 
-      {/* ─── Tab: Übersicht ─────────────────────────────────── */}
+      {/* ─── Tab: Übersicht ─────────────────────────────────────── */}
       {activeTab === 'uebersicht' && (
         <div className="space-y-6">
           {/* Finance Cards */}
@@ -328,9 +412,7 @@ export default function ProjektDetailPage() {
             <div className="bg-bd-card rounded-bd p-4 border border-bd-border">
               <p className="text-xs text-bd-text-muted uppercase tracking-wider mb-2">Setup</p>
               {isAdmin && (
-                <p className="text-xs text-bd-text-muted">
-                  Intern: {formatCurrency(setupIntern)}
-                </p>
+                <p className="text-xs text-bd-text-muted">Intern: {formatCurrency(setupIntern)}</p>
               )}
               <p className="text-lg font-bold">{formatCurrency(setupKunde)}</p>
               {isAdmin && setupMarge > 0 && (
@@ -342,9 +424,7 @@ export default function ProjektDetailPage() {
             <div className="bg-bd-card rounded-bd p-4 border border-bd-border">
               <p className="text-xs text-bd-text-muted uppercase tracking-wider mb-2">Monatlich</p>
               {isAdmin && (
-                <p className="text-xs text-bd-text-muted">
-                  Intern: {formatCurrency(monthlyIntern)}
-                </p>
+                <p className="text-xs text-bd-text-muted">Intern: {formatCurrency(monthlyIntern)}</p>
               )}
               <p className="text-lg font-bold">{formatCurrency(monthlyKunde)}</p>
               {isAdmin && monthlyMarge > 0 && (
@@ -356,13 +436,16 @@ export default function ProjektDetailPage() {
             <div className="bg-bd-card rounded-bd p-4 border border-bd-border">
               <p className="text-xs text-bd-text-muted uppercase tracking-wider mb-2">Jahreswert</p>
               <p className="text-lg font-bold text-bd-accent">{formatCurrency(jahreswert)}</p>
-              <p className="text-xs text-bd-text-muted mt-1">monatlich × 12</p>
+              <p className="text-xs text-bd-text-muted mt-1">monatlich &times; 12</p>
             </div>
 
-            {/* Total */}
-            <div className="bg-bd-card rounded-bd p-4 border border-bd-border">
+            {/* Gesamtwert */}
+            <div className="bg-bd-card rounded-bd p-4 border border-bd-accent/30">
               <p className="text-xs text-bd-text-muted uppercase tracking-wider mb-2">Gesamtwert (1. Jahr)</p>
-              <p className="text-lg font-bold text-bd-accent">{formatCurrency(setupKunde + jahreswert)}</p>
+              <p className="text-lg font-bold text-bd-accent">{formatCurrency(gesamtwert)}</p>
+              {isAdmin && gesamtMarge > 0 && (
+                <p className="text-xs text-green-400 mt-1">Marge: {gesamtMarge.toFixed(1)}%</p>
+              )}
               <p className="text-xs text-bd-text-muted mt-1">Setup + Jahreswert</p>
             </div>
           </div>
@@ -371,12 +454,12 @@ export default function ProjektDetailPage() {
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
             <h2 className="font-heading font-semibold mb-4">Projektdetails</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
+              <div className="sm:col-span-2">
                 <span className="text-bd-text-muted">Beschreibung</span>
-                <p className="mt-1">{project.description || '–'}</p>
+                <p className="mt-1">{project.description || '\u2013'}</p>
               </div>
               <div>
-                <span className="text-bd-text-muted">Kunde</span>
+                <span className="text-bd-text-muted">Kunde / Interessent</span>
                 <p className="mt-1">
                   {project.customer_id ? (
                     <Link href={`/kunden/${project.customer_id}`} className="text-bd-accent hover:underline">
@@ -385,9 +468,11 @@ export default function ProjektDetailPage() {
                   ) : project.prospect_name ? (
                     <span>
                       {project.prospect_name}
-                      {project.prospect_contact && <span className="text-bd-text-muted"> ({project.prospect_contact})</span>}
+                      {project.prospect_contact && (
+                        <span className="text-bd-text-muted"> ({project.prospect_contact})</span>
+                      )}
                     </span>
-                  ) : '–'}
+                  ) : '\u2013'}
                 </p>
               </div>
               {!project.customer_id && project.prospect_email && (
@@ -404,19 +489,35 @@ export default function ProjektDetailPage() {
               )}
               <div>
                 <span className="text-bd-text-muted">Zugewiesen an</span>
-                <p className="mt-1">{project.assigned_to_name || '–'}</p>
+                <p className="mt-1">{project.assigned_to_name || '\u2013'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Geplanter Start</span>
-                <p className="mt-1">{project.estimated_start ? formatDate(project.estimated_start) : '–'}</p>
+                <p className="mt-1">{project.estimated_start ? formatDate(project.estimated_start) : '\u2013'}</p>
               </div>
               <div>
                 <span className="text-bd-text-muted">Geplantes Ende</span>
-                <p className="mt-1">{project.estimated_end ? formatDate(project.estimated_end) : '–'}</p>
+                <p className="mt-1">{project.estimated_end ? formatDate(project.estimated_end) : '\u2013'}</p>
               </div>
+              {project.actual_start && (
+                <div>
+                  <span className="text-bd-text-muted">Tatsächlicher Start</span>
+                  <p className="mt-1">{formatDate(project.actual_start)}</p>
+                </div>
+              )}
+              {project.actual_end && (
+                <div>
+                  <span className="text-bd-text-muted">Tatsächliches Ende</span>
+                  <p className="mt-1">{formatDate(project.actual_end)}</p>
+                </div>
+              )}
               <div>
                 <span className="text-bd-text-muted">Erstellt am</span>
                 <p className="mt-1">{formatDate(project.created_at)}</p>
+              </div>
+              <div>
+                <span className="text-bd-text-muted">Erstellt von</span>
+                <p className="mt-1">{project.created_by_name || '\u2013'}</p>
               </div>
             </div>
           </div>
@@ -425,30 +526,45 @@ export default function ProjektDetailPage() {
           <div className="bg-bd-card rounded-bd p-5 border border-bd-border">
             <h2 className="font-heading font-semibold mb-4">Schnellaktionen</h2>
             <div className="flex flex-wrap gap-2">
+              <QuickActionButton
+                label="Briefing generieren"
+                type="briefing"
+                loading={quickActionLoading}
+                success={quickActionSuccess}
+                onClick={handleQuickAction}
+                variant="primary"
+              />
+              <QuickActionButton
+                label="Angebot erstellen"
+                type="angebot"
+                loading={quickActionLoading}
+                success={quickActionSuccess}
+                onClick={handleQuickAction}
+                variant="secondary"
+              />
+              {isAdmin && (
+                <QuickActionButton
+                  label="Kalkulation erstellen"
+                  type="kalkulation"
+                  loading={quickActionLoading}
+                  success={quickActionSuccess}
+                  onClick={handleQuickAction}
+                  variant="secondary"
+                />
+              )}
               <button
-                onClick={() => handleGenerateDocument('briefing')}
-                className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all"
+                onClick={handleRecalculate}
+                disabled={recalculating}
+                className="px-4 py-2 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all disabled:opacity-50"
               >
-                Briefing generieren
-              </button>
-              <button
-                onClick={() => handleGenerateDocument('angebot')}
-                className="px-4 py-2 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all"
-              >
-                Angebot erstellen
-              </button>
-              <button
-                onClick={() => handleGenerateDocument('kalkulation')}
-                className="px-4 py-2 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all"
-              >
-                Kalkulation erstellen
+                {recalculating ? 'Berechne...' : 'Finanzen aktualisieren'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ─── Tab: Module ────────────────────────────────────── */}
+      {/* ─── Tab: Module ──────────────────────────────────────────── */}
       {activeTab === 'module' && (
         <div>
           <div className="flex justify-end mb-4">
@@ -469,69 +585,142 @@ export default function ProjektDetailPage() {
                   <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Phase</th>
                   <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Komplexität</th>
                   {isAdmin && (
-                    <>
-                      <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Setup intern</th>
-                      <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Mtl. intern</th>
-                    </>
+                    <th className="text-right px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Setup intern</th>
                   )}
-                  <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Setup Kunde</th>
-                  <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Mtl. Kunde</th>
+                  <th className="text-right px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Setup Kunde</th>
                   {isAdmin && (
-                    <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Marge %</th>
+                    <th className="text-right px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Mtl. intern</th>
+                  )}
+                  <th className="text-right px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Mtl. Kunde</th>
+                  {isAdmin && (
+                    <th className="text-right px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Marge %</th>
                   )}
                   <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Stunden</th>
+                  <th className="text-right px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Stunden</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody>
-                {modules.length === 0 ? (
+                {sortedModules.length === 0 ? (
                   <tr>
-                    <td colSpan={isAdmin ? 12 : 9} className="text-center py-12 text-bd-text-muted">
+                    <td colSpan={isAdmin ? 12 : 8} className="text-center py-12 text-bd-text-muted">
                       Noch keine Module
                     </td>
                   </tr>
                 ) : (
-                  [...modules]
-                    .sort((a, b) => (a.phase || 99) - (b.phase || 99) || a.sort_order - b.sort_order)
-                    .map((m) => {
-                      const totalKunde = Number(m.setup_price_customer || 0) + Number(m.monthly_price_customer || 0);
-                      const totalIntern = Number(m.setup_cost_internal || 0) + Number(m.monthly_cost_internal || 0);
-                      const marge = totalKunde > 0 ? ((totalKunde - totalIntern) / totalKunde * 100) : 0;
+                  <>
+                    {sortedModules.map((m) => {
+                      const totalKunde = Number(m.setup_price_customer || 0) + Number(m.monthly_price_customer || 0) * 12;
+                      const totalIntern = Number(m.setup_cost_internal || 0) + Number(m.monthly_cost_internal || 0) * 12;
+                      const marge = totalKunde > 0 ? ((totalKunde - totalIntern) / totalKunde) * 100 : 0;
                       return (
-                        <ModuleRow
-                          key={m.id}
-                          module={m}
-                          marge={marge}
-                          isAdmin={isAdmin}
-                          projectId={id}
-                          onUpdated={() => { fetchModules(); fetchProject(); }}
-                          onDelete={() => handleDeleteModule(m.id)}
-                        />
+                        <tr key={m.id} className="border-b border-bd-border last:border-0 hover:bg-bd-card-hover transition-colors">
+                          <td className="px-4 py-3 font-medium">{m.name}</td>
+                          <td className="px-4 py-3">
+                            <Badge color={CATEGORY_CONFIG[m.category]?.color} bg={CATEGORY_CONFIG[m.category]?.bg}>
+                              {CATEGORY_CONFIG[m.category]?.label || m.category}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-bd-text-body">{m.phase || '\u2013'}</td>
+                          <td className="px-4 py-3 text-bd-text-body">{COMPLEXITY_CONFIG[m.complexity] || m.complexity}</td>
+                          {isAdmin && (
+                            <td className="px-4 py-3 text-right text-bd-text-muted">{formatCurrency(Number(m.setup_cost_internal || 0))}</td>
+                          )}
+                          <td className="px-4 py-3 text-right">{formatCurrency(Number(m.setup_price_customer || 0))}</td>
+                          {isAdmin && (
+                            <td className="px-4 py-3 text-right text-bd-text-muted">{formatCurrency(Number(m.monthly_cost_internal || 0))}</td>
+                          )}
+                          <td className="px-4 py-3 text-right">{formatCurrency(Number(m.monthly_price_customer || 0))}</td>
+                          {isAdmin && (
+                            <td className="px-4 py-3 text-right">
+                              <span className={marge > 0 ? 'text-green-400' : 'text-bd-text-muted'}>{marge.toFixed(1)}%</span>
+                            </td>
+                          )}
+                          <td className="px-4 py-3">
+                            <select
+                              value={m.status}
+                              onChange={(e) => handleModuleStatusChange(m.id, e.target.value as ModuleStatus)}
+                              className="text-xs bg-transparent border border-bd-border rounded px-1.5 py-1"
+                            >
+                              {ALL_MODULE_STATUSES.map((s) => (
+                                <option key={s} value={s}>{MODULE_STATUS_CONFIG[s].label}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 text-right text-bd-text-body">{m.estimated_hours || '\u2013'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => setEditingModule(m)}
+                                className="px-2 py-1 text-xs border border-bd-border rounded hover:bg-bd-card-hover"
+                              >
+                                Bearbeiten
+                              </button>
+                              <button
+                                onClick={() => handleDeleteModule(m.id)}
+                                className="px-2 py-1 text-xs border border-red-500/30 text-red-400 rounded hover:bg-red-500/10"
+                              >
+                                Löschen
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
                       );
-                    })
+                    })}
+                    {/* Summary row */}
+                    <tr className="border-t-2 border-bd-border bg-bd-bg-secondary font-semibold">
+                      <td className="px-4 py-3">Gesamt</td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3"></td>
+                      {isAdmin && (
+                        <td className="px-4 py-3 text-right text-bd-text-muted">{formatCurrency(moduleSums.setup_cost_internal)}</td>
+                      )}
+                      <td className="px-4 py-3 text-right">{formatCurrency(moduleSums.setup_price_customer)}</td>
+                      {isAdmin && (
+                        <td className="px-4 py-3 text-right text-bd-text-muted">{formatCurrency(moduleSums.monthly_cost_internal)}</td>
+                      )}
+                      <td className="px-4 py-3 text-right">{formatCurrency(moduleSums.monthly_price_customer)}</td>
+                      {isAdmin && <td className="px-4 py-3"></td>}
+                      <td className="px-4 py-3"></td>
+                      <td className="px-4 py-3 text-right">{moduleSums.estimated_hours > 0 ? moduleSums.estimated_hours : '\u2013'}</td>
+                      <td className="px-4 py-3"></td>
+                    </tr>
+                  </>
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Add Module Modal */}
-          <AddModuleModal
+          <ModuleFormModal
             open={showAddModule}
             onClose={() => setShowAddModule(false)}
             projectId={id}
             isAdmin={isAdmin}
-            onCreated={() => { fetchModules(); fetchProject(); fetchActivities(); setShowAddModule(false); }}
+            onSaved={() => { fetchModules(); fetchProject(); fetchActivities(); setShowAddModule(false); }}
           />
+
+          {/* Edit Module Modal */}
+          {editingModule && (
+            <ModuleFormModal
+              open={!!editingModule}
+              onClose={() => setEditingModule(null)}
+              projectId={id}
+              isAdmin={isAdmin}
+              existingModule={editingModule}
+              onSaved={() => { fetchModules(); fetchProject(); fetchActivities(); setEditingModule(null); }}
+            />
+          )}
         </div>
       )}
 
-      {/* ─── Tab: Dokumente ─────────────────────────────────── */}
+      {/* ─── Tab: Dokumente ───────────────────────────────────────── */}
       {activeTab === 'dokumente' && (
         <div>
           <div className="flex justify-end mb-4">
             <button
-              onClick={() => setShowAddDocument(true)}
+              onClick={() => setShowGenerateDoc(true)}
               className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all"
             >
               + Dokument generieren
@@ -546,33 +735,25 @@ export default function ProjektDetailPage() {
             ) : (
               documents.map((doc) => (
                 <div key={doc.id} className="bg-bd-card rounded-bd border border-bd-border">
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Badge color={DOC_TYPE_CONFIG[doc.type]?.color || 'text-gray-400'} bg={DOC_TYPE_CONFIG[doc.type]?.bg || 'bg-gray-400/10'}>
+                  <div className="flex items-center justify-between px-4 py-3 flex-wrap gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge
+                        color={DOC_TYPE_CONFIG[doc.type]?.color || 'text-gray-400'}
+                        bg={DOC_TYPE_CONFIG[doc.type]?.bg || 'bg-gray-400/10'}
+                      >
                         {DOC_TYPE_CONFIG[doc.type]?.label || doc.type}
                       </Badge>
-                      <span className="font-medium text-sm">{doc.title}</span>
-                      <span className="text-xs text-bd-text-muted">v{doc.version}</span>
+                      <span className="font-medium text-sm truncate">{doc.title}</span>
+                      <span className="text-xs text-bd-text-muted flex-shrink-0">v{doc.version}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs text-bd-text-muted">{doc.created_by_name || 'System'}</span>
                       <span className="text-xs text-bd-text-muted">{formatDate(doc.created_at)}</span>
                       <button
                         onClick={() => setExpandedDocId(expandedDocId === doc.id ? null : doc.id)}
                         className="px-3 py-1.5 text-xs border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors"
                       >
-                        {expandedDocId === doc.id ? 'Schließen' : 'HTML anzeigen'}
-                      </button>
-                      <button
-                        className="px-3 py-1.5 text-xs border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors text-bd-text-muted"
-                        title="PDF Export (kommt bald)"
-                      >
-                        PDF
-                      </button>
-                      <button
-                        className="px-3 py-1.5 text-xs border border-bd-border rounded-lg hover:bg-bd-card-hover transition-colors text-bd-text-muted"
-                        title="DOCX Export (kommt bald)"
-                      >
-                        DOCX
+                        {expandedDocId === doc.id ? 'Schließen' : 'Anzeigen'}
                       </button>
                       <button
                         onClick={() => handleDeleteDocument(doc.id)}
@@ -582,12 +763,17 @@ export default function ProjektDetailPage() {
                       </button>
                     </div>
                   </div>
-                  {expandedDocId === doc.id && doc.content_html && (
+                  {expandedDocId === doc.id && doc.generated_html && (
                     <div className="border-t border-bd-border px-4 py-4">
                       <div
-                        className="prose prose-invert prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: doc.content_html }}
+                        className="bg-white rounded-lg p-6 text-black prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: doc.generated_html }}
                       />
+                    </div>
+                  )}
+                  {expandedDocId === doc.id && !doc.generated_html && (
+                    <div className="border-t border-bd-border px-4 py-4 text-center text-bd-text-muted text-sm">
+                      Kein Inhalt vorhanden
                     </div>
                   )}
                 </div>
@@ -597,19 +783,21 @@ export default function ProjektDetailPage() {
 
           {/* Generate Document Modal */}
           <GenerateDocumentModal
-            open={showAddDocument}
-            onClose={() => setShowAddDocument(false)}
+            open={showGenerateDoc}
+            onClose={() => setShowGenerateDoc(false)}
             projectId={id}
-            onCreated={() => { fetchDocuments(); fetchActivities(); setShowAddDocument(false); }}
+            projectTitle={project.title}
+            onCreated={() => { fetchDocuments(); fetchActivities(); setShowGenerateDoc(false); }}
           />
         </div>
       )}
 
-      {/* ─── Tab: Aktivitäten ───────────────────────────────── */}
+      {/* ─── Tab: Aktivitäten ───────────────────────────────────── */}
       {activeTab === 'aktivitaeten' && (
         <div>
           {/* Add note form */}
           <div className="bg-bd-card rounded-bd border border-bd-border p-4 mb-4">
+            <h3 className="font-heading text-sm font-semibold mb-2">Notiz hinzufügen</h3>
             <textarea
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
@@ -633,19 +821,21 @@ export default function ProjektDetailPage() {
                 Noch keine Aktivitäten
               </div>
             ) : (
-              activities.map((a) => (
-                <div key={a.id} className="bg-bd-card rounded-bd border border-bd-border px-4 py-3 flex items-start gap-3">
-                  <span className="w-7 h-7 rounded-full bg-bd-bg-secondary flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
-                    {ACTIVITY_ICONS[a.type] || '•'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm">{a.description}</p>
-                    <p className="text-xs text-bd-text-muted mt-0.5">
-                      {a.user_name || 'System'} &middot; {formatRelative(a.created_at)}
-                    </p>
+              [...activities]
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map((a) => (
+                  <div key={a.id} className="bg-bd-card rounded-bd border border-bd-border px-4 py-3 flex items-start gap-3">
+                    <span className="w-7 h-7 rounded-full bg-bd-bg-secondary flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
+                      {ACTIVITY_ICONS[a.type as ProjectActivityType] || '\u2022'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">{a.description}</p>
+                      <p className="text-xs text-bd-text-muted mt-0.5">
+                        {a.user_name || 'System'} &middot; {formatRelative(a.created_at)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))
             )}
           </div>
         </div>
@@ -654,139 +844,59 @@ export default function ProjektDetailPage() {
   );
 }
 
-// ─── Module Row (inline editing) ────────────────────────────
+// ─── Quick Action Button ──────────────────────────────────────────
 
-function ModuleRow({
-  module: m,
-  marge,
-  isAdmin,
-  projectId,
-  onUpdated,
-  onDelete,
+function QuickActionButton({
+  label,
+  type,
+  loading,
+  success,
+  onClick,
+  variant,
 }: {
-  module: ProjectModule;
-  marge: number;
-  isAdmin: boolean;
-  projectId: string;
-  onUpdated: () => void;
-  onDelete: () => void;
+  label: string;
+  type: ProjectDocumentType;
+  loading: string | null;
+  success: string | null;
+  onClick: (type: ProjectDocumentType) => void;
+  variant: 'primary' | 'secondary';
 }) {
-  const [editing, setEditing] = useState(false);
-  const [setupCustomer, setSetupCustomer] = useState(String(m.setup_price_customer || 0));
-  const [monthlyCustomer, setMonthlyCustomer] = useState(String(m.monthly_price_customer || 0));
-  const [setupInternal, setSetupInternal] = useState(String(m.setup_cost_internal || 0));
-  const [monthlyInternal, setMonthlyInternal] = useState(String(m.monthly_cost_internal || 0));
+  const isLoading = loading === type;
+  const isSuccess = success === type;
 
-  const handleSave = async () => {
-    try {
-      await api.patch(`/projects/${projectId}/modules/${m.id}`, {
-        setup_price_customer: parseFloat(setupCustomer) || 0,
-        monthly_price_customer: parseFloat(monthlyCustomer) || 0,
-        ...(isAdmin ? {
-          setup_cost_internal: parseFloat(setupInternal) || 0,
-          monthly_cost_internal: parseFloat(monthlyInternal) || 0,
-        } : {}),
-      });
-      setEditing(false);
-      onUpdated();
-    } catch {
-      alert('Fehler beim Speichern');
-    }
-  };
+  const baseClass = variant === 'primary'
+    ? 'px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all disabled:opacity-50'
+    : 'px-4 py-2 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all disabled:opacity-50';
 
   return (
-    <tr className="border-b border-bd-border last:border-0 hover:bg-bd-card-hover transition-colors">
-      <td className="px-4 py-3 font-medium">{m.name}</td>
-      <td className="px-4 py-3">
-        <Badge color={CATEGORY_CONFIG[m.category]?.color} bg={CATEGORY_CONFIG[m.category]?.bg}>
-          {CATEGORY_CONFIG[m.category]?.label || m.category}
-        </Badge>
-      </td>
-      <td className="px-4 py-3 text-bd-text-body">{m.phase || '–'}</td>
-      <td className="px-4 py-3 text-bd-text-body">{COMPLEXITY_LABELS[m.complexity] || m.complexity}</td>
-      {isAdmin && (
-        <>
-          <td className="px-4 py-3">
-            {editing ? (
-              <input type="number" value={setupInternal} onChange={(e) => setSetupInternal(e.target.value)} className="w-20 text-sm" />
-            ) : (
-              <span className="text-bd-text-muted">{formatCurrency(Number(m.setup_cost_internal || 0))}</span>
-            )}
-          </td>
-          <td className="px-4 py-3">
-            {editing ? (
-              <input type="number" value={monthlyInternal} onChange={(e) => setMonthlyInternal(e.target.value)} className="w-20 text-sm" />
-            ) : (
-              <span className="text-bd-text-muted">{formatCurrency(Number(m.monthly_cost_internal || 0))}</span>
-            )}
-          </td>
-        </>
-      )}
-      <td className="px-4 py-3">
-        {editing ? (
-          <input type="number" value={setupCustomer} onChange={(e) => setSetupCustomer(e.target.value)} className="w-20 text-sm" />
-        ) : (
-          formatCurrency(Number(m.setup_price_customer || 0))
-        )}
-      </td>
-      <td className="px-4 py-3">
-        {editing ? (
-          <input type="number" value={monthlyCustomer} onChange={(e) => setMonthlyCustomer(e.target.value)} className="w-20 text-sm" />
-        ) : (
-          formatCurrency(Number(m.monthly_price_customer || 0))
-        )}
-      </td>
-      {isAdmin && (
-        <td className="px-4 py-3">
-          <span className={marge > 0 ? 'text-green-400' : 'text-bd-text-muted'}>{marge.toFixed(1)}%</span>
-        </td>
-      )}
-      <td className="px-4 py-3">
-        <Badge color={MODULE_STATUS_CONFIG[m.status]?.color} bg={MODULE_STATUS_CONFIG[m.status]?.bg}>
-          {MODULE_STATUS_CONFIG[m.status]?.label || m.status}
-        </Badge>
-      </td>
-      <td className="px-4 py-3 text-bd-text-body">{m.estimated_hours || '–'}</td>
-      <td className="px-4 py-3">
-        <div className="flex gap-1">
-          {editing ? (
-            <>
-              <button onClick={handleSave} className="px-2 py-1 text-xs bg-bd-accent text-bd-bg rounded hover:brightness-110">Speichern</button>
-              <button onClick={() => setEditing(false)} className="px-2 py-1 text-xs border border-bd-border rounded hover:bg-bd-card-hover">Abbrechen</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setEditing(true)} className="px-2 py-1 text-xs border border-bd-border rounded hover:bg-bd-card-hover">Bearbeiten</button>
-              <button onClick={onDelete} className="px-2 py-1 text-xs border border-red-500/30 text-red-400 rounded hover:bg-red-500/10">Löschen</button>
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
+    <button
+      onClick={() => onClick(type)}
+      disabled={isLoading || loading !== null}
+      className={baseClass}
+    >
+      {isLoading ? 'Generiere...' : isSuccess ? '\u2713 Erstellt' : label}
+    </button>
   );
 }
 
-// ─── Add Module Modal ───────────────────────────────────────
+// ─── Module Form Modal (Add + Edit) ──────────────────────────────
 
-const ALL_CATEGORIES: ModuleCategory[] = [
-  'crm', 'ki_chatbot', 'ki_telefon', 'automatisierung', 'routenplanung', 'website', 'seo_marketing', 'analytics', 'sonstiges',
-];
-const ALL_MODULE_STATUSES: ModuleStatus[] = ['geplant', 'in_arbeit', 'fertig', 'pausiert'];
-const ALL_COMPLEXITIES: ModuleComplexity[] = ['niedrig', 'mittel', 'hoch'];
-
-function AddModuleModal({
+function ModuleFormModal({
   open,
   onClose,
   projectId,
   isAdmin,
-  onCreated,
+  existingModule,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   projectId: string;
   isAdmin: boolean;
-  onCreated: () => void;
+  existingModule?: ProjectModule;
+  onSaved: () => void;
 }) {
+  const isEdit = !!existingModule;
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -794,45 +904,80 @@ function AddModuleModal({
     category: 'crm' as ModuleCategory,
     phase: '',
     complexity: 'mittel' as ModuleComplexity,
+    status: 'geplant' as ModuleStatus,
     setup_cost_internal: '0',
     setup_price_customer: '0',
     monthly_cost_internal: '0',
     monthly_price_customer: '0',
     estimated_hours: '',
-    status: 'geplant' as ModuleStatus,
+    estimated_weeks: '',
+    tech_stack: '',
+    dependencies: '',
+    risks: '',
+    dsgvo_notes: '',
   });
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    if (existingModule) {
       setForm({
-        name: '', description: '', category: 'crm', phase: '',
-        complexity: 'mittel', setup_cost_internal: '0', setup_price_customer: '0',
-        monthly_cost_internal: '0', monthly_price_customer: '0', estimated_hours: '', status: 'geplant',
+        name: existingModule.name,
+        description: existingModule.description || '',
+        category: existingModule.category,
+        phase: existingModule.phase !== null ? String(existingModule.phase) : '',
+        complexity: existingModule.complexity,
+        status: existingModule.status,
+        setup_cost_internal: String(existingModule.setup_cost_internal || 0),
+        setup_price_customer: String(existingModule.setup_price_customer || 0),
+        monthly_cost_internal: String(existingModule.monthly_cost_internal || 0),
+        monthly_price_customer: String(existingModule.monthly_price_customer || 0),
+        estimated_hours: existingModule.estimated_hours !== null ? String(existingModule.estimated_hours) : '',
+        estimated_weeks: existingModule.estimated_weeks !== null ? String(existingModule.estimated_weeks) : '',
+        tech_stack: existingModule.tech_stack || '',
+        dependencies: existingModule.dependencies || '',
+        risks: existingModule.risks || '',
+        dsgvo_notes: existingModule.dsgvo_notes || '',
+      });
+    } else {
+      setForm({
+        name: '', description: '', category: 'crm', phase: '', complexity: 'mittel', status: 'geplant',
+        setup_cost_internal: '0', setup_price_customer: '0', monthly_cost_internal: '0', monthly_price_customer: '0',
+        estimated_hours: '', estimated_weeks: '', tech_stack: '', dependencies: '', risks: '', dsgvo_notes: '',
       });
     }
-  }, [open]);
+  }, [open, existingModule]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     setLoading(true);
+    const payload = {
+      name: form.name,
+      description: form.description || null,
+      category: form.category,
+      phase: form.phase ? parseInt(form.phase) : null,
+      complexity: form.complexity,
+      status: form.status,
+      setup_cost_internal: parseFloat(form.setup_cost_internal) || 0,
+      setup_price_customer: parseFloat(form.setup_price_customer) || 0,
+      monthly_cost_internal: parseFloat(form.monthly_cost_internal) || 0,
+      monthly_price_customer: parseFloat(form.monthly_price_customer) || 0,
+      estimated_hours: form.estimated_hours ? parseInt(form.estimated_hours) : null,
+      estimated_weeks: form.estimated_weeks ? parseInt(form.estimated_weeks) : null,
+      tech_stack: form.tech_stack || null,
+      dependencies: form.dependencies || null,
+      risks: form.risks || null,
+      dsgvo_notes: form.dsgvo_notes || null,
+    };
     try {
-      await api.post(`/projects/${projectId}/modules`, {
-        name: form.name,
-        description: form.description || null,
-        category: form.category,
-        phase: form.phase ? parseInt(form.phase) : null,
-        complexity: form.complexity,
-        setup_cost_internal: parseFloat(form.setup_cost_internal) || 0,
-        setup_price_customer: parseFloat(form.setup_price_customer) || 0,
-        monthly_cost_internal: parseFloat(form.monthly_cost_internal) || 0,
-        monthly_price_customer: parseFloat(form.monthly_price_customer) || 0,
-        estimated_hours: form.estimated_hours ? parseInt(form.estimated_hours) : null,
-        status: form.status,
-      });
-      onCreated();
+      if (isEdit && existingModule) {
+        await api.put(`/projects/${projectId}/modules/${existingModule.id}`, payload);
+      } else {
+        await api.post(`/projects/${projectId}/modules`, payload);
+      }
+      onSaved();
     } catch {
-      alert('Fehler beim Erstellen des Moduls');
+      alert(isEdit ? 'Fehler beim Aktualisieren des Moduls' : 'Fehler beim Erstellen des Moduls');
     } finally {
       setLoading(false);
     }
@@ -841,8 +986,8 @@ function AddModuleModal({
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
-    <Modal open={open} onClose={onClose} title="Modul hinzufügen">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Modul bearbeiten' : 'Modul hinzufügen'}>
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto">
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Name *</label>
           <input type="text" value={form.name} onChange={(e) => update('name', e.target.value)} required placeholder="Modulname" className="w-full" />
@@ -856,7 +1001,7 @@ function AddModuleModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Kategorie</label>
-            <select value={form.category} onChange={(e) => update('category', e.target.value)}>
+            <select value={form.category} onChange={(e) => update('category', e.target.value)} className="w-full">
               {ALL_CATEGORIES.map((c) => (
                 <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
               ))}
@@ -864,9 +1009,9 @@ function AddModuleModal({
           </div>
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Komplexität</label>
-            <select value={form.complexity} onChange={(e) => update('complexity', e.target.value)}>
+            <select value={form.complexity} onChange={(e) => update('complexity', e.target.value)} className="w-full">
               {ALL_COMPLEXITIES.map((c) => (
-                <option key={c} value={c}>{COMPLEXITY_LABELS[c]}</option>
+                <option key={c} value={c}>{COMPLEXITY_CONFIG[c]}</option>
               ))}
             </select>
           </div>
@@ -875,11 +1020,11 @@ function AddModuleModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Phase</label>
-            <input type="text" value={form.phase} onChange={(e) => update('phase', e.target.value)} placeholder="z.B. Phase 1" className="w-full" />
+            <input type="number" min="1" value={form.phase} onChange={(e) => update('phase', e.target.value)} placeholder="z.B. 1" className="w-full" />
           </div>
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Status</label>
-            <select value={form.status} onChange={(e) => update('status', e.target.value)}>
+            <select value={form.status} onChange={(e) => update('status', e.target.value)} className="w-full">
               {ALL_MODULE_STATUSES.map((s) => (
                 <option key={s} value={s}>{MODULE_STATUS_CONFIG[s].label}</option>
               ))}
@@ -890,11 +1035,11 @@ function AddModuleModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Setup Kunde</label>
-            <input type="number" step="0.01" value={form.setup_price_customer} onChange={(e) => update('setup_price_customer', e.target.value)} className="w-full" />
+            <input type="number" step="0.01" min="0" value={form.setup_price_customer} onChange={(e) => update('setup_price_customer', e.target.value)} className="w-full" />
           </div>
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Monatlich Kunde</label>
-            <input type="number" step="0.01" value={form.monthly_price_customer} onChange={(e) => update('monthly_price_customer', e.target.value)} className="w-full" />
+            <input type="number" step="0.01" min="0" value={form.monthly_price_customer} onChange={(e) => update('monthly_price_customer', e.target.value)} className="w-full" />
           </div>
         </div>
 
@@ -902,23 +1047,49 @@ function AddModuleModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-bd-text-secondary mb-1">Setup intern</label>
-              <input type="number" step="0.01" value={form.setup_cost_internal} onChange={(e) => update('setup_cost_internal', e.target.value)} className="w-full" />
+              <input type="number" step="0.01" min="0" value={form.setup_cost_internal} onChange={(e) => update('setup_cost_internal', e.target.value)} className="w-full" />
             </div>
             <div>
               <label className="block text-sm text-bd-text-secondary mb-1">Monatlich intern</label>
-              <input type="number" step="0.01" value={form.monthly_cost_internal} onChange={(e) => update('monthly_cost_internal', e.target.value)} className="w-full" />
+              <input type="number" step="0.01" min="0" value={form.monthly_cost_internal} onChange={(e) => update('monthly_cost_internal', e.target.value)} className="w-full" />
             </div>
           </div>
         )}
 
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Geschätzte Stunden</label>
+            <input type="number" min="0" value={form.estimated_hours} onChange={(e) => update('estimated_hours', e.target.value)} placeholder="z.B. 40" className="w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Geschätzte Wochen</label>
+            <input type="number" min="0" value={form.estimated_weeks} onChange={(e) => update('estimated_weeks', e.target.value)} placeholder="z.B. 4" className="w-full" />
+          </div>
+        </div>
+
         <div>
-          <label className="block text-sm text-bd-text-secondary mb-1">Geschätzte Stunden</label>
-          <input type="number" value={form.estimated_hours} onChange={(e) => update('estimated_hours', e.target.value)} placeholder="z.B. 40" className="w-full" />
+          <label className="block text-sm text-bd-text-secondary mb-1">Tech-Stack</label>
+          <input type="text" value={form.tech_stack} onChange={(e) => update('tech_stack', e.target.value)} placeholder="z.B. React, Node.js, PostgreSQL" className="w-full" />
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Abhängigkeiten</label>
+          <input type="text" value={form.dependencies} onChange={(e) => update('dependencies', e.target.value)} placeholder="z.B. Modul A muss zuerst fertig sein" className="w-full" />
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Risiken</label>
+          <textarea value={form.risks} onChange={(e) => update('risks', e.target.value)} rows={2} className="w-full" placeholder="Bekannte Risiken..." />
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">DSGVO-Hinweise</label>
+          <textarea value={form.dsgvo_notes} onChange={(e) => update('dsgvo_notes', e.target.value)} rows={2} className="w-full" placeholder="Datenschutz-relevante Anmerkungen..." />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={loading || !form.name.trim()} className="px-5 py-2.5 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all disabled:opacity-50">
-            {loading ? 'Erstelle...' : 'Modul hinzufügen'}
+            {loading ? (isEdit ? 'Speichere...' : 'Erstelle...') : (isEdit ? 'Speichern' : 'Modul hinzufügen')}
           </button>
           <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all">
             Abbrechen
@@ -929,19 +1100,19 @@ function AddModuleModal({
   );
 }
 
-// ─── Generate Document Modal ────────────────────────────────
-
-const ALL_DOC_TYPES: ProjectDocumentType[] = ['briefing', 'angebot', 'kalkulation', 'vertrag', 'av_vertrag', 'statusbericht', 'technische_doku'];
+// ─── Generate Document Modal ──────────────────────────────────────
 
 function GenerateDocumentModal({
   open,
   onClose,
   projectId,
+  projectTitle,
   onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   projectId: string;
+  projectTitle: string;
   onCreated: () => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -958,7 +1129,7 @@ function GenerateDocumentModal({
     try {
       await api.post(`/projects/${projectId}/documents/generate`, {
         type,
-        title: title || DOC_TYPE_CONFIG[type].label,
+        title: title || `${DOC_TYPE_CONFIG[type].label} \u2014 ${projectTitle}`,
       });
       onCreated();
     } catch {
@@ -973,19 +1144,19 @@ function GenerateDocumentModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm text-bd-text-secondary mb-1">Dokumenttyp</label>
-          <select value={type} onChange={(e) => setType(e.target.value as ProjectDocumentType)}>
+          <select value={type} onChange={(e) => setType(e.target.value as ProjectDocumentType)} className="w-full">
             {ALL_DOC_TYPES.map((t) => (
               <option key={t} value={t}>{DOC_TYPE_CONFIG[t].label}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className="block text-sm text-bd-text-secondary mb-1">Titel</label>
+          <label className="block text-sm text-bd-text-secondary mb-1">Titel (optional)</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={DOC_TYPE_CONFIG[type].label}
+            placeholder={`${DOC_TYPE_CONFIG[type].label} \u2014 ${projectTitle}`}
             className="w-full"
           />
         </div>
