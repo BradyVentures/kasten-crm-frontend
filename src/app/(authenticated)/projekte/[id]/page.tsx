@@ -32,47 +32,48 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bg: s
   abgebrochen:   { label: 'Abgebrochen',   color: 'text-red-400',     bg: 'bg-red-400/10' },
 };
 
-const MODULE_STATUS_CONFIG: Record<ModuleStatus, { label: string; color: string; bg: string }> = {
-  geplant:        { label: 'Geplant',        color: 'text-gray-400',   bg: 'bg-gray-400/10' },
-  in_arbeit:      { label: 'In Arbeit',      color: 'text-blue-400',   bg: 'bg-blue-400/10' },
-  abgeschlossen:  { label: 'Abgeschlossen',  color: 'text-green-400',  bg: 'bg-green-400/10' },
-  pausiert:       { label: 'Pausiert',        color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  abgebrochen:    { label: 'Abgebrochen',     color: 'text-red-400',    bg: 'bg-red-400/10' },
+const MODULE_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  geplant:   { label: 'Geplant',   color: 'text-gray-400',   bg: 'bg-gray-400/10' },
+  in_arbeit: { label: 'In Arbeit', color: 'text-blue-400',   bg: 'bg-blue-400/10' },
+  fertig:    { label: 'Fertig',    color: 'text-green-400',  bg: 'bg-green-400/10' },
+  pausiert:  { label: 'Pausiert',  color: 'text-orange-400', bg: 'bg-orange-400/10' },
 };
 
-const CATEGORY_CONFIG: Record<ModuleCategory, { label: string; color: string; bg: string }> = {
-  website:       { label: 'Website',       color: 'text-blue-400',    bg: 'bg-blue-400/10' },
-  seo:           { label: 'SEO',           color: 'text-green-400',   bg: 'bg-green-400/10' },
-  ads:           { label: 'Ads',           color: 'text-orange-400',  bg: 'bg-orange-400/10' },
-  social_media:  { label: 'Social Media',  color: 'text-pink-400',    bg: 'bg-pink-400/10' },
-  ki_workflows:  { label: 'KI-Workflows',  color: 'text-purple-400',  bg: 'bg-purple-400/10' },
-  analytics:     { label: 'Analytics',     color: 'text-cyan-400',    bg: 'bg-cyan-400/10' },
-  design:        { label: 'Design',        color: 'text-rose-400',    bg: 'bg-rose-400/10' },
-  content:       { label: 'Content',       color: 'text-amber-400',   bg: 'bg-amber-400/10' },
-  sonstiges:     { label: 'Sonstiges',     color: 'text-gray-400',    bg: 'bg-gray-400/10' },
+const CATEGORY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  crm:              { label: 'CRM',              color: 'text-blue-400',    bg: 'bg-blue-400/10' },
+  ki_chatbot:       { label: 'KI-Chatbot',       color: 'text-purple-400',  bg: 'bg-purple-400/10' },
+  ki_telefon:       { label: 'KI-Telefon',       color: 'text-violet-400',  bg: 'bg-violet-400/10' },
+  automatisierung:  { label: 'Automatisierung',  color: 'text-amber-400',   bg: 'bg-amber-400/10' },
+  routenplanung:    { label: 'Routenplanung',    color: 'text-green-400',   bg: 'bg-green-400/10' },
+  website:          { label: 'Website',          color: 'text-cyan-400',    bg: 'bg-cyan-400/10' },
+  seo_marketing:    { label: 'SEO & Marketing',  color: 'text-pink-400',    bg: 'bg-pink-400/10' },
+  analytics:        { label: 'Analytics',        color: 'text-teal-400',    bg: 'bg-teal-400/10' },
+  sonstiges:        { label: 'Sonstiges',        color: 'text-gray-400',    bg: 'bg-gray-400/10' },
 };
 
-const COMPLEXITY_LABELS: Record<ModuleComplexity, string> = {
-  niedrig: 'Niedrig', mittel: 'Mittel', hoch: 'Hoch', sehr_hoch: 'Sehr hoch',
+const COMPLEXITY_LABELS: Record<string, string> = {
+  niedrig: 'Niedrig', mittel: 'Mittel', hoch: 'Hoch',
 };
 
-const DOC_TYPE_CONFIG: Record<ProjectDocumentType, { label: string; color: string; bg: string }> = {
-  briefing:     { label: 'Briefing',     color: 'text-blue-400',   bg: 'bg-blue-400/10' },
-  angebot:      { label: 'Angebot',      color: 'text-green-400',  bg: 'bg-green-400/10' },
-  kalkulation:  { label: 'Kalkulation',  color: 'text-amber-400',  bg: 'bg-amber-400/10' },
-  vertrag:      { label: 'Vertrag',      color: 'text-purple-400', bg: 'bg-purple-400/10' },
-  protokoll:    { label: 'Protokoll',    color: 'text-cyan-400',   bg: 'bg-cyan-400/10' },
-  sonstiges:    { label: 'Sonstiges',    color: 'text-gray-400',   bg: 'bg-gray-400/10' },
+const DOC_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  briefing:         { label: 'Briefing',          color: 'text-blue-400',   bg: 'bg-blue-400/10' },
+  angebot:          { label: 'Angebot',           color: 'text-green-400',  bg: 'bg-green-400/10' },
+  vertrag:          { label: 'Vertrag',           color: 'text-purple-400', bg: 'bg-purple-400/10' },
+  av_vertrag:       { label: 'AV-Vertrag',        color: 'text-violet-400', bg: 'bg-violet-400/10' },
+  kalkulation:      { label: 'Kalkulation',       color: 'text-amber-400',  bg: 'bg-amber-400/10' },
+  statusbericht:    { label: 'Statusbericht',     color: 'text-cyan-400',   bg: 'bg-cyan-400/10' },
+  technische_doku:  { label: 'Technische Doku',   color: 'text-gray-400',   bg: 'bg-gray-400/10' },
 };
 
-const ACTIVITY_ICONS: Record<ProjectActivityType, string> = {
+const ACTIVITY_ICONS: Record<string, string> = {
   erstellt: '✦',
   status_aenderung: '↻',
   modul_hinzugefuegt: '+',
-  modul_entfernt: '−',
+  modul_aktualisiert: '✎',
   dokument_erstellt: '◫',
   notiz: '✎',
-  zuweisung: '◇',
+  meeting: '◇',
+  kalkulation_aktualisiert: '⟳',
 };
 
 type TabId = 'uebersicht' | 'module' | 'dokumente' | 'aktivitaeten';
@@ -226,12 +227,12 @@ export default function ProjektDetailPage() {
     );
   }
 
-  const setupIntern = Number(project.setup_price_internal || 0);
-  const setupKunde = Number(project.setup_price_customer || 0);
+  const setupIntern = Number(project.total_setup_cost_internal || 0);
+  const setupKunde = Number(project.total_setup_price_customer || 0);
   const setupMarge = setupKunde > 0 ? ((setupKunde - setupIntern) / setupKunde) * 100 : 0;
 
-  const monthlyIntern = Number(project.monthly_price_internal || 0);
-  const monthlyKunde = Number(project.monthly_price_customer || 0);
+  const monthlyIntern = Number(project.total_monthly_cost_internal || 0);
+  const monthlyKunde = Number(project.total_monthly_price_customer || 0);
   const monthlyMarge = monthlyKunde > 0 ? ((monthlyKunde - monthlyIntern) / monthlyKunde) * 100 : 0;
 
   const jahreswert = monthlyKunde * 12;
@@ -480,10 +481,10 @@ export default function ProjektDetailPage() {
                   </tr>
                 ) : (
                   [...modules]
-                    .sort((a, b) => (a.phase || '').localeCompare(b.phase || '') || a.sort_order - b.sort_order)
+                    .sort((a, b) => (a.phase || 99) - (b.phase || 99) || a.sort_order - b.sort_order)
                     .map((m) => {
                       const totalKunde = Number(m.setup_price_customer || 0) + Number(m.monthly_price_customer || 0);
-                      const totalIntern = Number(m.setup_price_internal || 0) + Number(m.monthly_price_internal || 0);
+                      const totalIntern = Number(m.setup_cost_internal || 0) + Number(m.monthly_cost_internal || 0);
                       const marge = totalKunde > 0 ? ((totalKunde - totalIntern) / totalKunde * 100) : 0;
                       return (
                         <ModuleRow
@@ -661,8 +662,8 @@ function ModuleRow({
   const [editing, setEditing] = useState(false);
   const [setupCustomer, setSetupCustomer] = useState(String(m.setup_price_customer || 0));
   const [monthlyCustomer, setMonthlyCustomer] = useState(String(m.monthly_price_customer || 0));
-  const [setupInternal, setSetupInternal] = useState(String(m.setup_price_internal || 0));
-  const [monthlyInternal, setMonthlyInternal] = useState(String(m.monthly_price_internal || 0));
+  const [setupInternal, setSetupInternal] = useState(String(m.setup_cost_internal || 0));
+  const [monthlyInternal, setMonthlyInternal] = useState(String(m.monthly_cost_internal || 0));
 
   const handleSave = async () => {
     try {
@@ -670,8 +671,8 @@ function ModuleRow({
         setup_price_customer: parseFloat(setupCustomer) || 0,
         monthly_price_customer: parseFloat(monthlyCustomer) || 0,
         ...(isAdmin ? {
-          setup_price_internal: parseFloat(setupInternal) || 0,
-          monthly_price_internal: parseFloat(monthlyInternal) || 0,
+          setup_cost_internal: parseFloat(setupInternal) || 0,
+          monthly_cost_internal: parseFloat(monthlyInternal) || 0,
         } : {}),
       });
       setEditing(false);
@@ -697,14 +698,14 @@ function ModuleRow({
             {editing ? (
               <input type="number" value={setupInternal} onChange={(e) => setSetupInternal(e.target.value)} className="w-20 text-sm" />
             ) : (
-              <span className="text-bd-text-muted">{formatCurrency(Number(m.setup_price_internal || 0))}</span>
+              <span className="text-bd-text-muted">{formatCurrency(Number(m.setup_cost_internal || 0))}</span>
             )}
           </td>
           <td className="px-4 py-3">
             {editing ? (
               <input type="number" value={monthlyInternal} onChange={(e) => setMonthlyInternal(e.target.value)} className="w-20 text-sm" />
             ) : (
-              <span className="text-bd-text-muted">{formatCurrency(Number(m.monthly_price_internal || 0))}</span>
+              <span className="text-bd-text-muted">{formatCurrency(Number(m.monthly_cost_internal || 0))}</span>
             )}
           </td>
         </>
@@ -756,10 +757,10 @@ function ModuleRow({
 // ─── Add Module Modal ───────────────────────────────────────
 
 const ALL_CATEGORIES: ModuleCategory[] = [
-  'website', 'seo', 'ads', 'social_media', 'ki_workflows', 'analytics', 'design', 'content', 'sonstiges',
+  'crm', 'ki_chatbot', 'ki_telefon', 'automatisierung', 'routenplanung', 'website', 'seo_marketing', 'analytics', 'sonstiges',
 ];
-const ALL_MODULE_STATUSES: ModuleStatus[] = ['geplant', 'in_arbeit', 'abgeschlossen', 'pausiert', 'abgebrochen'];
-const ALL_COMPLEXITIES: ModuleComplexity[] = ['niedrig', 'mittel', 'hoch', 'sehr_hoch'];
+const ALL_MODULE_STATUSES: ModuleStatus[] = ['geplant', 'in_arbeit', 'fertig', 'pausiert'];
+const ALL_COMPLEXITIES: ModuleComplexity[] = ['niedrig', 'mittel', 'hoch'];
 
 function AddModuleModal({
   open,
@@ -778,12 +779,12 @@ function AddModuleModal({
   const [form, setForm] = useState({
     name: '',
     description: '',
-    category: 'website' as ModuleCategory,
+    category: 'crm' as ModuleCategory,
     phase: '',
     complexity: 'mittel' as ModuleComplexity,
-    setup_price_internal: '0',
+    setup_cost_internal: '0',
     setup_price_customer: '0',
-    monthly_price_internal: '0',
+    monthly_cost_internal: '0',
     monthly_price_customer: '0',
     estimated_hours: '',
     status: 'geplant' as ModuleStatus,
@@ -792,9 +793,9 @@ function AddModuleModal({
   useEffect(() => {
     if (open) {
       setForm({
-        name: '', description: '', category: 'website', phase: '',
-        complexity: 'mittel', setup_price_internal: '0', setup_price_customer: '0',
-        monthly_price_internal: '0', monthly_price_customer: '0', estimated_hours: '', status: 'geplant',
+        name: '', description: '', category: 'crm', phase: '',
+        complexity: 'mittel', setup_cost_internal: '0', setup_price_customer: '0',
+        monthly_cost_internal: '0', monthly_price_customer: '0', estimated_hours: '', status: 'geplant',
       });
     }
   }, [open]);
@@ -808,11 +809,11 @@ function AddModuleModal({
         name: form.name,
         description: form.description || null,
         category: form.category,
-        phase: form.phase || null,
+        phase: form.phase ? parseInt(form.phase) : null,
         complexity: form.complexity,
-        setup_price_internal: parseFloat(form.setup_price_internal) || 0,
+        setup_cost_internal: parseFloat(form.setup_cost_internal) || 0,
         setup_price_customer: parseFloat(form.setup_price_customer) || 0,
-        monthly_price_internal: parseFloat(form.monthly_price_internal) || 0,
+        monthly_cost_internal: parseFloat(form.monthly_cost_internal) || 0,
         monthly_price_customer: parseFloat(form.monthly_price_customer) || 0,
         estimated_hours: form.estimated_hours ? parseInt(form.estimated_hours) : null,
         status: form.status,
@@ -889,11 +890,11 @@ function AddModuleModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-bd-text-secondary mb-1">Setup intern</label>
-              <input type="number" step="0.01" value={form.setup_price_internal} onChange={(e) => update('setup_price_internal', e.target.value)} className="w-full" />
+              <input type="number" step="0.01" value={form.setup_cost_internal} onChange={(e) => update('setup_cost_internal', e.target.value)} className="w-full" />
             </div>
             <div>
               <label className="block text-sm text-bd-text-secondary mb-1">Monatlich intern</label>
-              <input type="number" step="0.01" value={form.monthly_price_internal} onChange={(e) => update('monthly_price_internal', e.target.value)} className="w-full" />
+              <input type="number" step="0.01" value={form.monthly_cost_internal} onChange={(e) => update('monthly_cost_internal', e.target.value)} className="w-full" />
             </div>
           </div>
         )}
@@ -918,7 +919,7 @@ function AddModuleModal({
 
 // ─── Generate Document Modal ────────────────────────────────
 
-const ALL_DOC_TYPES: ProjectDocumentType[] = ['briefing', 'angebot', 'kalkulation', 'vertrag', 'protokoll', 'sonstiges'];
+const ALL_DOC_TYPES: ProjectDocumentType[] = ['briefing', 'angebot', 'kalkulation', 'vertrag', 'av_vertrag', 'statusbericht', 'technische_doku'];
 
 function GenerateDocumentModal({
   open,

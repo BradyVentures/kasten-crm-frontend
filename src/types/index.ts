@@ -252,35 +252,37 @@ export type ProjectStatus =
   | 'abgebrochen';
 
 export type ModuleCategory =
+  | 'crm'
+  | 'ki_chatbot'
+  | 'ki_telefon'
+  | 'automatisierung'
+  | 'routenplanung'
   | 'website'
-  | 'seo'
-  | 'ads'
-  | 'social_media'
-  | 'ki_workflows'
+  | 'seo_marketing'
   | 'analytics'
-  | 'design'
-  | 'content'
   | 'sonstiges';
 
-export type ModuleStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'pausiert' | 'abgebrochen';
-export type ModuleComplexity = 'niedrig' | 'mittel' | 'hoch' | 'sehr_hoch';
+export type ModuleStatus = 'geplant' | 'in_arbeit' | 'fertig' | 'pausiert';
+export type ModuleComplexity = 'niedrig' | 'mittel' | 'hoch';
 
 export type ProjectDocumentType =
   | 'briefing'
   | 'angebot'
-  | 'kalkulation'
   | 'vertrag'
-  | 'protokoll'
-  | 'sonstiges';
+  | 'av_vertrag'
+  | 'kalkulation'
+  | 'statusbericht'
+  | 'technische_doku';
 
 export type ProjectActivityType =
   | 'erstellt'
   | 'status_aenderung'
   | 'modul_hinzugefuegt'
-  | 'modul_entfernt'
+  | 'modul_aktualisiert'
   | 'dokument_erstellt'
   | 'notiz'
-  | 'zuweisung';
+  | 'meeting'
+  | 'kalkulation_aktualisiert';
 
 export interface Project {
   id: string;
@@ -298,10 +300,10 @@ export interface Project {
   template_id: string | null;
   estimated_start: string | null;
   estimated_end: string | null;
-  setup_price_internal: number;
-  setup_price_customer: number;
-  monthly_price_internal: number;
-  monthly_price_customer: number;
+  total_setup_cost_internal: number;
+  total_setup_price_customer: number;
+  total_monthly_cost_internal: number;
+  total_monthly_price_customer: number;
   module_count: number;
   created_by: string | null;
   created_by_name: string | null;
@@ -315,15 +317,20 @@ export interface ProjectModule {
   name: string;
   description: string | null;
   category: ModuleCategory;
-  phase: string | null;
+  phase: number | null;
   complexity: ModuleComplexity;
-  setup_price_internal: number;
+  setup_cost_internal: number;
   setup_price_customer: number;
-  monthly_price_internal: number;
+  monthly_cost_internal: number;
   monthly_price_customer: number;
   estimated_hours: number | null;
+  estimated_weeks: number | null;
   status: ModuleStatus;
   sort_order: number;
+  tech_stack: string | null;
+  dependencies: string | null;
+  risks: string | null;
+  dsgvo_notes: string | null;
   created_at: string;
   updated_at: string;
 }

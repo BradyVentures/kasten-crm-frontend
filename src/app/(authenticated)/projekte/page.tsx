@@ -97,7 +97,7 @@ export default function ProjektePage() {
   // ─── Helpers ────────────────────────────────────────────
 
   const getJahreswert = (p: Project) =>
-    Number(p.setup_price_customer || 0) + Number(p.monthly_price_customer || 0) * 12;
+    Number(p.total_setup_price_customer || 0) + Number(p.total_monthly_price_customer || 0) * 12;
 
   const getDisplayName = (p: Project) =>
     p.customer_name || p.prospect_name || '–';
@@ -200,8 +200,8 @@ export default function ProjektePage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-bd-text-body">{p.module_count || 0}</td>
-                    <td className="px-4 py-3 text-bd-text-body">{formatCurrency(Number(p.setup_price_customer || 0))}</td>
-                    <td className="px-4 py-3 text-bd-text-body">{formatCurrency(Number(p.monthly_price_customer || 0))}</td>
+                    <td className="px-4 py-3 text-bd-text-body">{formatCurrency(Number(p.total_setup_price_customer || 0))}</td>
+                    <td className="px-4 py-3 text-bd-text-body">{formatCurrency(Number(p.total_monthly_price_customer || 0))}</td>
                     <td className="px-4 py-3 font-medium text-bd-accent">{formatCurrency(getJahreswert(p))}</td>
                     <td className="px-4 py-3 text-bd-text-body">{p.assigned_to_name || '–'}</td>
                     <td className="px-4 py-3 text-xs text-bd-text-muted">{formatRelative(p.updated_at)}</td>
