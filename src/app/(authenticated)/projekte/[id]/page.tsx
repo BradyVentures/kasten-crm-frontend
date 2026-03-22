@@ -139,7 +139,7 @@ export default function ProjektDetailPage() {
 
   const handleStatusChange = async (status: ProjectStatus) => {
     try {
-      await api.patch(`/projects/${id}`, { status });
+      await api.patch(`/projects/${id}/status`, { status });
       fetchProject();
       fetchActivities();
     } catch {
@@ -149,7 +149,7 @@ export default function ProjektDetailPage() {
 
   const handleAssignChange = async (assignedTo: string) => {
     try {
-      await api.patch(`/projects/${id}`, { assigned_to: assignedTo || null });
+      await api.put(`/projects/${id}`, { assigned_to: assignedTo || null });
       fetchProject();
       fetchActivities();
     } catch {
@@ -208,8 +208,20 @@ export default function ProjektDetailPage() {
   };
 
   const handleGenerateDocument = async (type: ProjectDocumentType) => {
+    const titleMap: Record<string, string> = {
+      briefing: 'Meeting-Briefing',
+      angebot: 'Kundenangebot',
+      kalkulation: 'Interne Kalkulation',
+      vertrag: 'Dienstleistungsvertrag',
+      av_vertrag: 'AV-Vertrag',
+      statusbericht: 'Statusbericht',
+      technische_doku: 'Technische Dokumentation',
+    };
     try {
-      await api.post(`/projects/${id}/documents/generate`, { type });
+      await api.post(`/projects/${id}/documents/generate`, {
+        type,
+        title: `${titleMap[type] || type} — ${project?.title || ''}`,
+      });
       fetchDocuments();
       fetchActivities();
     } catch {
