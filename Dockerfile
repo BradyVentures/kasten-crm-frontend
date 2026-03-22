@@ -18,9 +18,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --from=builder /app/public ./public
+# public dir may not exist, copy conditionally
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+RUN mkdir -p ./public
 
 EXPOSE 3000
 
