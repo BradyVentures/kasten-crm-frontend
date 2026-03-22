@@ -44,6 +44,8 @@ class OfflineDatabase extends Dexie {
   infoPages!: Table;
   regions!: Table;
   promotions!: Table;
+  projects!: Table;
+  projectModules!: Table;
   syncQueue!: Table<SyncQueueEntry, number>;
   syncMeta!: Table<SyncMeta, string>;
 
@@ -58,6 +60,10 @@ class OfflineDatabase extends Dexie {
       emailTemplates: 'id, category, user_id',
       infoPages: 'id',
       documents: 'id',
+
+      // Projects
+      projects: 'id, status, assigned_to, customer_id, updated_at',
+      projectModules: 'id, project_id, status',
 
       // Read-only reference data
       services: 'id',
@@ -90,6 +96,8 @@ const ENDPOINT_TABLE_MAP: Record<string, string> = {
   '/documents': 'documents',
   '/regions': 'regions',
   '/promotions': 'promotions',
+  '/projects': 'projects',
+  '/project-modules': 'projectModules',
   '/dashboard/stats': 'dashboardStats',
   '/dashboard/recent-activity': 'recentActivity',
 };

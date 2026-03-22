@@ -238,3 +238,123 @@ export interface PaginatedResponse<T> {
   leads?: T[];
   customers?: T[];
 }
+
+// ─── Projects ──────────────────────────────────────────────
+
+export type ProjectStatus =
+  | 'entwurf'
+  | 'angebot'
+  | 'verhandlung'
+  | 'beauftragt'
+  | 'in_umsetzung'
+  | 'live'
+  | 'pausiert'
+  | 'abgebrochen';
+
+export type ModuleCategory =
+  | 'website'
+  | 'seo'
+  | 'ads'
+  | 'social_media'
+  | 'ki_workflows'
+  | 'analytics'
+  | 'design'
+  | 'content'
+  | 'sonstiges';
+
+export type ModuleStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'pausiert' | 'abgebrochen';
+export type ModuleComplexity = 'niedrig' | 'mittel' | 'hoch' | 'sehr_hoch';
+
+export type ProjectDocumentType =
+  | 'briefing'
+  | 'angebot'
+  | 'kalkulation'
+  | 'vertrag'
+  | 'protokoll'
+  | 'sonstiges';
+
+export type ProjectActivityType =
+  | 'erstellt'
+  | 'status_aenderung'
+  | 'modul_hinzugefuegt'
+  | 'modul_entfernt'
+  | 'dokument_erstellt'
+  | 'notiz'
+  | 'zuweisung';
+
+export interface Project {
+  id: string;
+  title: string;
+  description: string | null;
+  status: ProjectStatus;
+  customer_id: string | null;
+  customer_name: string | null;
+  prospect_name: string | null;
+  prospect_contact: string | null;
+  prospect_email: string | null;
+  prospect_phone: string | null;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  template_id: string | null;
+  estimated_start: string | null;
+  estimated_end: string | null;
+  setup_price_internal: number;
+  setup_price_customer: number;
+  monthly_price_internal: number;
+  monthly_price_customer: number;
+  module_count: number;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectModule {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  category: ModuleCategory;
+  phase: string | null;
+  complexity: ModuleComplexity;
+  setup_price_internal: number;
+  setup_price_customer: number;
+  monthly_price_internal: number;
+  monthly_price_customer: number;
+  estimated_hours: number | null;
+  status: ModuleStatus;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectDocument {
+  id: string;
+  project_id: string;
+  type: ProjectDocumentType;
+  title: string;
+  content_html: string | null;
+  version: number;
+  created_by: string | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export interface ProjectActivity {
+  id: string;
+  project_id: string;
+  type: ProjectActivityType;
+  description: string;
+  user_id: string | null;
+  user_name: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  modules: ProjectModule[];
+  created_at: string;
+}
