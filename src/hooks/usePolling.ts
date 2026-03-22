@@ -27,14 +27,24 @@ export function usePolling<T>(
   useEffect(() => {
     refetch();
 
+    // Poll only when tab is visible AND online
     const interval = setInterval(() => {
-      if (!document.hidden) {
+      if (!document.hidden && navigator.onLine) {
         refetch();
       }
     }, intervalMs);
 
     return () => clearInterval(interval);
   }, [refetch, intervalMs]);
+
+  // Refetch immediately when coming back online
+  useEffect(() => {
+    const handleOnline = () => {
+      refetch();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [refetch]);
 
   return { data, loading, error, refetch };
 }

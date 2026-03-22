@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileHeader from '@/components/layout/MobileHeader';
+import ConnectionStatus from '@/components/ui/ConnectionStatus';
 
 export default function AuthenticatedLayout({
   children,
@@ -44,6 +45,7 @@ export default function AuthenticatedLayout({
       <MobileHeader onMenuToggle={() => setSidebarOpen(true)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="flex-1 p-3 md:p-6 overflow-auto">
+        <ConnectionStatus />
         {children}
       </main>
     </div>

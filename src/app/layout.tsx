@@ -16,12 +16,14 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Brady Digital - SalesTool",
   description: "Internes Sales & Lead Management Tool",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#0f0f14",
 };
 
 export default function RootLayout({
