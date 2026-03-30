@@ -227,6 +227,11 @@ function ServiceCard({ service }: { service: Service }) {
           <p className="text-xs text-bd-text-muted">
             {service.price_model === 'monatlich' ? '/Monat' : 'einmalig'}
           </p>
+          {Number(service.setup_price) > 0 && (
+            <p className="text-xs text-bd-text-secondary">
+              + {formatCurrency(Number(service.setup_price))} Einrichtung
+            </p>
+          )}
         </div>
       </div>
 
