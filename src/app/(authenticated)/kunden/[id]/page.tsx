@@ -157,6 +157,9 @@ export default function KundenDetailPage() {
                         ) : (
                           <span className="font-semibold">{formatCurrency(Number(s.sold_price))}{s.price_model === 'monatlich' ? '/Mo' : ''}</span>
                         )}
+                        {Number(s.setup_price) > 0 && (
+                          <p className="text-xs text-bd-text-secondary mt-0.5">+ {formatCurrency(Number(s.setup_price))} Einrichtung</p>
+                        )}
                         {s.promotion_name && (
                           <p className="text-xs text-bd-accent mt-0.5">{s.promotion_name}</p>
                         )}
@@ -272,6 +275,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
 }) {
   const [serviceId, setServiceId] = useState('');
   const [soldPrice, setSoldPrice] = useState('');
+  const [setupPrice, setSetupPrice] = useState('0');
   const [priceModel, setPriceModel] = useState('einmalig');
   const [contractMonths, setContractMonths] = useState('12');
   const [notes, setNotes] = useState('');
@@ -289,6 +293,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
     const svc = services.find((s) => s.id === id);
     if (svc) {
       setSoldPrice(svc.base_price.toString());
+      setSetupPrice((svc.setup_price || 0).toString());
       setPriceModel(svc.price_model);
       // Load available promotions for this service
       try {
@@ -328,6 +333,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
       await api.post(`/customers/${customerId}/services`, {
         service_id: serviceId,
         sold_price: parseFloat(soldPrice),
+        setup_price: parseFloat(setupPrice) || 0,
         price_model: priceModel,
         contract_months: priceModel === 'monatlich' ? parseInt(contractMonths) : undefined,
         notes: notes || undefined,
@@ -337,6 +343,7 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
       onClose();
       setServiceId('');
       setSoldPrice('');
+      setSetupPrice('0');
       setContractMonths('12');
       setNotes('');
       setPromotionId('');
@@ -358,15 +365,19 @@ function AssignServiceModal({ open, onClose, customerId, services, onAssigned }:
             <option value="">Service auswählen...</option>
             {services.filter((s) => s.is_active).map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} ({formatCurrency(s.base_price)} / {s.price_model})
+                {s.name} ({formatCurrency(s.base_price)} / {s.price_model}{Number(s.setup_price) > 0 ? ` + ${formatCurrency(Number(s.setup_price))} Einrichtung` : ''})
               </option>
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Verkaufspreis (EUR) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Einrichtung (EUR)</label>
+            <input type="number" step="0.01" min="0" className="w-full" value={setupPrice} onChange={(e) => setSetupPrice(e.target.value)} />
           </div>
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Preismodell</label>

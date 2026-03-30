@@ -69,6 +69,7 @@ export interface Service {
   description: string | null;
   includes: string | null;
   base_price: number;
+  setup_price: number;
   price_model: string;
   type: ServiceType;
   category: ServiceCategory | null;
@@ -84,6 +85,7 @@ export interface CustomerServiceItem {
   service_name: string;
   service_type: ServiceType;
   sold_price: number;
+  setup_price: number;
   price_model: string;
   contract_months: number | null;
   sold_date: string;

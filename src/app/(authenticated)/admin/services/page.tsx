@@ -137,6 +137,7 @@ export default function AdminServicesPage() {
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Typ</th>
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Preis</th>
+                      <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Einrichtung</th>
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Modell</th>
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider">Provision</th>
                       <th className="px-4 py-3 text-xs text-bd-text-muted font-medium uppercase tracking-wider w-32"></th>
@@ -163,6 +164,9 @@ export default function AdminServicesPage() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3 text-sm font-medium">{formatCurrency(Number(s.base_price))}</td>
+                          <td className="px-4 py-3 text-sm text-bd-text-body">
+                            {Number(s.setup_price) > 0 ? formatCurrency(Number(s.setup_price)) : <span className="text-bd-text-muted">–</span>}
+                          </td>
                           <td className="px-4 py-3 text-sm text-bd-text-body">{s.price_model === 'monatlich' ? 'Monatlich' : 'Einmalig'}</td>
                           <td className="px-4 py-3 text-sm text-bd-text-body">
                             {Number(s.commission_rate) > 0 ? (
@@ -182,7 +186,7 @@ export default function AdminServicesPage() {
                         </tr>
                         {expandedId === s.id && (
                           <tr key={`${s.id}-detail`} className="border-b border-bd-border last:border-0">
-                            <td colSpan={6} className="px-4 py-4 bg-bd-bg/50">
+                            <td colSpan={7} className="px-4 py-4 bg-bd-bg/50">
                               <div className="grid grid-cols-1 gap-3 max-w-3xl">
                                 {s.description && (
                                   <div>
@@ -265,6 +269,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
     description: '',
     includes: '',
     base_price: '',
+    setup_price: '0',
     price_model: 'einmalig',
     type: 'paket' as 'paket' | 'addon',
     category: 'Web-Services',
@@ -281,6 +286,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
         description: service.description || '',
         includes: service.includes || '',
         base_price: service.base_price.toString(),
+        setup_price: (service.setup_price || 0).toString(),
         price_model: service.price_model,
         type: service.type,
         category: service.category || 'Web-Services',
@@ -290,7 +296,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
     } else {
       setForm({
         name: '', short_description: '', description: '', includes: '',
-        base_price: '', price_model: 'einmalig', type: 'paket',
+        base_price: '', setup_price: '0', price_model: 'einmalig', type: 'paket',
         category: 'Web-Services', sort_order: '0', commission_rate: '0',
       });
     }
@@ -306,6 +312,7 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
         description: form.description || undefined,
         includes: form.includes || undefined,
         base_price: parseFloat(form.base_price),
+        setup_price: parseFloat(form.setup_price) || 0,
         price_model: form.price_model,
         type: form.type,
         category: form.category,
@@ -368,11 +375,18 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Basispreis (€) *</label>
             <input required type="number" step="0.01" min="0" className="w-full" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />
           </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Einrichtungsgebühr (€)</label>
+            <input type="number" step="0.01" min="0" className="w-full" value={form.setup_price} onChange={(e) => setForm({ ...form, setup_price: e.target.value })} placeholder="0" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Preismodell</label>
             <select className="w-full" value={form.price_model} onChange={(e) => setForm({ ...form, price_model: e.target.value })}>
@@ -384,12 +398,10 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
             <label className="block text-sm text-bd-text-secondary mb-1">Provision (%)</label>
             <input type="number" step="0.01" min="0" max="100" className="w-full" value={form.commission_rate} onChange={(e) => setForm({ ...form, commission_rate: e.target.value })} />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm text-bd-text-secondary mb-1">Sortierung</label>
-          <input type="number" className="w-full" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
-          <p className="text-xs text-bd-text-muted mt-1">Web-Services: 100-199, Marketing: 200-299, KI: 300-399, Analytics: 400-499</p>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Sortierung</label>
+            <input type="number" className="w-full" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
+          </div>
         </div>
 
         <button type="submit" disabled={loading} className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all">
