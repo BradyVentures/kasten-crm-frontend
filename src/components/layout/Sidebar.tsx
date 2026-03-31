@@ -10,7 +10,6 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '◉' },
   { href: '/leads', label: 'Leads', icon: '◎' },
   { href: '/kunden', label: 'Kunden', icon: '◈' },
-  { href: '/projekte', label: 'Projekte', icon: '📋' },
   { href: '/todos', label: 'Todos', icon: '☐' },
   { href: '/provisionen', label: 'Provisionen', icon: '◆' },
   { href: '/info-center', label: 'Info Center', icon: '◫' },
