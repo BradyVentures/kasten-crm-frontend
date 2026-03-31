@@ -11,6 +11,7 @@ interface ModalProps {
 
 export default function Modal({ open, onClose, title, children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const mouseDownTarget = useRef<EventTarget | null>(null);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -26,7 +27,14 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => e.target === overlayRef.current && onClose()}
+      onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
+      onClick={(e) => {
+        // Nur schliessen wenn mousedown UND click auf dem Overlay waren
+        // Verhindert Schliessen beim Text-Markieren
+        if (e.target === overlayRef.current && mouseDownTarget.current === overlayRef.current) {
+          onClose();
+        }
+      }}
     >
       <div className="bg-bd-card rounded-t-xl sm:rounded-bd border-0 sm:border border-bd-border w-full sm:max-w-lg sm:mx-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-bd-border">

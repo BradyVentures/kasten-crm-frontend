@@ -285,8 +285,8 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
         short_description: service.short_description || '',
         description: service.description || '',
         includes: service.includes || '',
-        base_price: service.base_price.toString(),
-        setup_price: (service.setup_price || 0).toString(),
+        base_price: Math.round(Number(service.base_price)).toString(),
+        setup_price: Math.round(Number(service.setup_price || 0)).toString(),
         price_model: service.price_model,
         type: service.type,
         category: service.category || 'Web-Services',
@@ -378,11 +378,11 @@ function ServiceFormModal({ open, onClose, service, onSaved }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Basispreis (€) *</label>
-            <input required type="number" step="0.01" min="0" className="w-full" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />
+            <input required type="number" step="1" min="0" className="w-full" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm text-bd-text-secondary mb-1">Einrichtungsgebühr (€)</label>
-            <input type="number" step="0.01" min="0" className="w-full" value={form.setup_price} onChange={(e) => setForm({ ...form, setup_price: e.target.value })} placeholder="0" />
+            <input type="number" step="1" min="0" className="w-full" value={form.setup_price} onChange={(e) => setForm({ ...form, setup_price: e.target.value })} placeholder="0" />
           </div>
         </div>
 
