@@ -14,6 +14,7 @@ export default function KundenDetailPage() {
   const router = useRouter();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showAssign, setShowAssign] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [showCreateTodo, setShowCreateTodo] = useState(false);
   const [customerTodos, setCustomerTodos] = useState<Todo[]>([]);
 
@@ -78,6 +79,9 @@ export default function KundenDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-heading text-2xl font-bold">{customer.company_name}</h1>
         <div className="flex gap-2">
+          <button onClick={() => setShowEdit(true)} className="px-4 py-2 text-sm border border-bd-border text-bd-text-body rounded-lg hover:bg-bd-card-hover transition-all">
+            Bearbeiten
+          </button>
           <button onClick={() => setShowAssign(true)} className="px-4 py-2 text-sm bg-bd-accent text-bd-bg font-semibold rounded-lg hover:brightness-110 transition-all">
             + Service zuweisen
           </button>
@@ -243,6 +247,14 @@ export default function KundenDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Customer Modal */}
+      <EditCustomerModal
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        customer={customer}
+        onSaved={fetchCustomer}
+      />
 
       {/* Assign Service Modal */}
       <AssignServiceModal
@@ -561,6 +573,114 @@ function CreateTodoFromCustomerModal({
         )}
         <button type="submit" disabled={loading || !form.title.trim()} className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all">
           {loading ? 'Erstelle...' : 'Todo erstellen'}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
+function EditCustomerModal({ open, onClose, customer, onSaved }: {
+  open: boolean;
+  onClose: () => void;
+  customer: Customer;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    company_name: customer.company_name,
+    contact_person: customer.contact_person || '',
+    email: customer.email || '',
+    phone: customer.phone || '',
+    website: customer.website || '',
+    address: customer.address || '',
+    city: customer.city || '',
+    postal_code: customer.postal_code || '',
+    notes: customer.notes || '',
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        company_name: customer.company_name,
+        contact_person: customer.contact_person || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+        website: customer.website || '',
+        address: customer.address || '',
+        city: customer.city || '',
+        postal_code: customer.postal_code || '',
+        notes: customer.notes || '',
+      });
+    }
+  }, [open, customer]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.put(`/customers/${customer.id}`, form);
+      onSaved();
+      onClose();
+    } catch {
+      alert('Fehler beim Speichern');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Kunde bearbeiten">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Firmenname *</label>
+          <input required className="w-full" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Kontaktperson</label>
+            <input className="w-full" value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">E-Mail</label>
+            <input type="email" className="w-full" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Telefon</label>
+            <input className="w-full" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Website</label>
+            <input className="w-full" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Adresse</label>
+          <input className="w-full" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">PLZ</label>
+            <input className="w-full" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm text-bd-text-secondary mb-1">Stadt</label>
+            <input className="w-full" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm text-bd-text-secondary mb-1">Notizen</label>
+          <textarea rows={3} className="w-full" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        </div>
+
+        <button type="submit" disabled={loading || !form.company_name.trim()} className="w-full bg-bd-accent text-bd-bg font-semibold py-2.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition-all">
+          {loading ? 'Speichern...' : 'Änderungen speichern'}
         </button>
       </form>
     </Modal>
