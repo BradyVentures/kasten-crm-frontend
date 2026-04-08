@@ -1,8 +1,6 @@
 export type UserRole = 'admin' | 'employee';
-export type LeadStatus = 'neu' | 'kontaktiert' | 'qualifiziert' | 'angebot' | 'gewonnen' | 'verloren';
-export type ServiceType = 'paket' | 'addon';
-export type ActivityType = 'anruf' | 'email' | 'status_aenderung' | 'notiz' | 'zuweisung' | 'erstellt' | 'import' | 'konvertiert';
-export type DocumentCategory = 'Gesprächsleitfaden' | 'Service-Info' | 'Schulung' | 'Sonstiges';
+export type OfferStatus = 'entwurf' | 'gesendet' | 'angenommen' | 'abgelehnt';
+export type TodoStatus = 'offen' | 'erledigt';
 
 export interface User {
   id: string;
@@ -13,192 +11,113 @@ export interface User {
   created_at: string;
 }
 
-export interface Lead {
-  id: string;
-  company_name: string;
-  contact_person: string | null;
-  email: string | null;
-  phone: string | null;
-  website: string | null;
-  address: string | null;
-  city: string | null;
-  postal_code: string | null;
-  bundesland: string | null;
-  branche: string | null;
-  website_rating: number | null;
-  website_checked: boolean;
-  website_check_notes: string | null;
-  status: LeadStatus;
-  assigned_to: string | null;
-  assigned_to_name: string | null;
-  source: string | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Customer {
   id: string;
-  lead_id: string | null;
+  customer_number: string | null;
   company_name: string;
   contact_person: string | null;
   email: string | null;
   phone: string | null;
-  website: string | null;
+  mobile: string | null;
   address: string | null;
   city: string | null;
   postal_code: string | null;
   notes: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
-  converted_at: string | null;
-  converted_by: string | null;
-  created_at: string;
-  total_revenue: number;
-  service_count: number;
-  services?: CustomerServiceItem[];
-}
-
-export type ServiceCategory = 'Web-Services' | 'Sichtbarkeit & Marketing' | 'KI-Workflows' | 'Analytics';
-
-export interface Service {
-  id: string;
-  name: string;
-  short_description: string | null;
-  description: string | null;
-  includes: string | null;
-  base_price: number;
-  setup_price: number;
-  price_model: string;
-  type: ServiceType;
-  category: ServiceCategory | null;
-  is_active: boolean;
-  sort_order: number;
-  commission_rate: number;
-}
-
-export interface CustomerServiceItem {
-  id: string;
-  customer_id: string;
-  service_id: string;
-  service_name: string;
-  service_type: ServiceType;
-  sold_price: number;
-  setup_price: number;
-  price_model: string;
-  contract_months: number | null;
-  sold_date: string;
-  sold_by: string | null;
-  sold_by_name: string | null;
-  notes: string | null;
-  commission_rate: number;
-  commission_amount: number;
-  promotion_id: string | null;
-  promotion_name: string | null;
-  original_price: number | null;
-  discount_amount: number | null;
-}
-
-export type DiscountType = 'fixed' | 'percentage';
-
-export interface Promotion {
-  id: string;
-  name: string;
-  description: string | null;
-  discount_type: DiscountType;
-  discount_value: number;
-  valid_from: string | null;
-  valid_until: string | null;
-  max_redemptions: number | null;
-  current_redemptions: number;
-  applicable_service_ids: string[] | null;
-  is_active: boolean;
   created_by: string | null;
-  created_by_name: string | null;
   created_at: string;
   updated_at: string;
+  offer_count?: number;
+  offers?: OfferSummary[];
 }
 
-export interface LeadActivity {
+export interface OfferSummary {
   id: string;
-  lead_id: string;
-  user_id: string;
-  user_name: string;
-  type: ActivityType;
-  description: string | null;
-  metadata: Record<string, unknown> | null;
+  offer_number: string;
+  customer_name?: string;
+  status: OfferStatus;
+  gross_total: number;
   created_at: string;
-  company_name?: string;
 }
 
-export interface LeadLock {
-  lead_id: string;
-  user_id: string;
-  user_name: string;
-  expires_at: string;
-}
-
-export interface Region {
+export interface Offer {
   id: string;
-  name: string;
-  plzFrom: string;
-  plzTo: string;
-  bundesland: string;
-  landkreis: string;
-}
-
-export interface DashboardStats {
-  leads_by_status: Record<string, number>;
-  total_leads: number;
-  won_leads: number;
-  conversion_rate: number;
-  total_revenue: number;
-  monthly_revenue: number;
-}
-
-export interface CommissionDetail {
-  id: string;
-  sold_price: number;
-  sold_date: string;
-  price_model: string;
-  contract_months: number | null;
-  service_name: string;
-  commission_rate: number;
-  commission_amount: number;
+  offer_number: string;
+  customer_id: string | null;
   customer_name: string;
-  employee_name: string;
-  employee_id: string;
-}
-
-export interface CommissionSummary {
-  employee_id: string;
-  employee_name: string;
-  total_sales: number;
-  total_revenue: number;
-  total_commission: number;
-}
-
-export interface CommissionData {
-  details: CommissionDetail[];
-  summary: CommissionSummary[];
-}
-
-export interface Document {
-  id: string;
-  title: string;
-  description: string | null;
-  category: DocumentCategory;
-  original_name: string;
-  file_size: number;
-  mime_type: string;
-  uploaded_by: string | null;
-  uploaded_by_name: string | null;
+  customer_address: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  status: OfferStatus;
+  notes: string | null;
+  valid_until: string | null;
+  net_total: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_total: number;
+  discount_amount: number;
+  discount_note: string | null;
+  created_by: string;
+  created_by_name?: string;
+  sent_at: string | null;
+  accepted_at: string | null;
+  declined_at: string | null;
   created_at: string;
   updated_at: string;
+  items?: OfferItem[];
 }
 
-export type TodoStatus = 'offen' | 'erledigt';
+export interface OfferItem {
+  id: string;
+  offer_id: string;
+  category_slug: string;
+  product_name: string;
+  description: string | null;
+  configuration: Record<string, unknown>;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  sort_order: number;
+}
+
+export interface ProductCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  attributes?: ProductAttribute[];
+}
+
+export interface ProductAttribute {
+  id: string;
+  category_id: string;
+  slug: string;
+  label: string;
+  attribute_type: 'select' | 'number' | 'boolean' | 'text';
+  unit: string | null;
+  is_required: boolean;
+  sort_order: number;
+  options?: ProductAttributeOption[];
+}
+
+export interface ProductAttributeOption {
+  id: string;
+  attribute_id: string;
+  value: string;
+  label: string;
+  price_modifier: number;
+  is_default: boolean;
+  sort_order: number;
+}
+
+export interface PriceCalculation {
+  unitPrice: number;
+  breakdown: { label: string; amount: number; type: string }[];
+  productName: string;
+}
 
 export interface Todo {
   id: string;
@@ -208,8 +127,8 @@ export interface Todo {
   due_date: string | null;
   customer_id: string | null;
   customer_name: string | null;
-  customer_service_id: string | null;
-  service_name: string | null;
+  offer_id: string | null;
+  offer_number: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
   created_by: string;
@@ -218,156 +137,36 @@ export interface Todo {
   updated_at: string;
 }
 
-export interface EmailTemplate {
-  id: string;
-  title: string;
-  subject: string;
-  body: string;
-  category: string;
-  sort_order: number;
-  created_by: string | null;
-  created_by_name: string | null;
-  updated_by: string | null;
-  updated_by_name: string | null;
-  created_at: string;
-  updated_at: string;
+export interface DashboardStats {
+  total_customers: number;
+  offers_draft: number;
+  offers_sent: number;
+  offers_accepted: number;
+  offers_declined: number;
+  offers_total: number;
+  accepted_revenue: number;
+  monthly_offer_total: number;
+  open_todos: number;
+}
+
+export interface ImportPreviewRow {
+  rowIndex: number;
+  company_name: string | null;
+  contact_person: string | null;
+  email: string | null;
+  phone: string | null;
+  mobile: string | null;
+  address: string | null;
+  city: string | null;
+  postal_code: string | null;
+  confidence: number;
+  raw_text: string;
 }
 
 export interface PaginatedResponse<T> {
   total: number;
   page: number;
   per_page: number;
-  leads?: T[];
   customers?: T[];
-}
-
-// ─── Projects ──────────────────────────────────────────────
-
-export type ProjectStatus =
-  | 'entwurf'
-  | 'angebot'
-  | 'verhandlung'
-  | 'beauftragt'
-  | 'in_umsetzung'
-  | 'live'
-  | 'pausiert'
-  | 'abgebrochen';
-
-export type ModuleCategory =
-  | 'crm'
-  | 'ki_chatbot'
-  | 'ki_telefon'
-  | 'automatisierung'
-  | 'routenplanung'
-  | 'website'
-  | 'seo_marketing'
-  | 'analytics'
-  | 'sonstiges';
-
-export type ModuleStatus = 'geplant' | 'in_arbeit' | 'fertig' | 'pausiert';
-export type ModuleComplexity = 'niedrig' | 'mittel' | 'hoch';
-
-export type ProjectDocumentType =
-  | 'briefing'
-  | 'angebot'
-  | 'vertrag'
-  | 'av_vertrag'
-  | 'kalkulation'
-  | 'statusbericht'
-  | 'technische_doku';
-
-export type ProjectActivityType =
-  | 'erstellt'
-  | 'status_aenderung'
-  | 'modul_hinzugefuegt'
-  | 'modul_aktualisiert'
-  | 'dokument_erstellt'
-  | 'notiz'
-  | 'meeting'
-  | 'kalkulation_aktualisiert';
-
-export interface Project {
-  id: string;
-  title: string;
-  description: string | null;
-  status: ProjectStatus;
-  customer_id: string | null;
-  customer_name: string | null;
-  prospect_name: string | null;
-  prospect_contact: string | null;
-  prospect_email: string | null;
-  prospect_phone: string | null;
-  assigned_to: string | null;
-  assigned_to_name: string | null;
-  template_id: string | null;
-  estimated_start: string | null;
-  estimated_end: string | null;
-  actual_start: string | null;
-  actual_end: string | null;
-  total_setup_cost_internal: number;
-  total_setup_price_customer: number;
-  total_monthly_cost_internal: number;
-  total_monthly_price_customer: number;
-  module_count: number;
-  created_by: string | null;
-  created_by_name: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ProjectModule {
-  id: string;
-  project_id: string;
-  name: string;
-  description: string | null;
-  category: ModuleCategory;
-  phase: number | null;
-  complexity: ModuleComplexity;
-  setup_cost_internal: number;
-  setup_price_customer: number;
-  monthly_cost_internal: number;
-  monthly_price_customer: number;
-  estimated_hours: number | null;
-  estimated_weeks: number | null;
-  status: ModuleStatus;
-  sort_order: number;
-  tech_stack: string | null;
-  dependencies: string | null;
-  risks: string | null;
-  dsgvo_notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ProjectDocument {
-  id: string;
-  project_id: string;
-  type: ProjectDocumentType;
-  title: string;
-  generated_html: string | null;
-  template_data: Record<string, unknown> | null;
-  version: number;
-  created_by: string | null;
-  created_by_name: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ProjectActivity {
-  id: string;
-  project_id: string;
-  type: ProjectActivityType;
-  description: string;
-  user_id: string | null;
-  user_name: string | null;
-  metadata: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface ProjectTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  modules: ProjectModule[];
-  created_at: string;
+  offers?: T[];
 }

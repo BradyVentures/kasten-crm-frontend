@@ -1,29 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Lora, Lato } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
-const inter = Inter({
+const lora = Lora({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-lora",
 });
 
-const outfit = Outfit({
+const lato = Lato({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  weight: ["400", "700", "900"],
+  variable: "--font-lato",
 });
 
 export const metadata: Metadata = {
-  title: "Brady Digital - SalesTool",
-  description: "Internes Sales & Lead Management Tool",
-  manifest: "/manifest.json",
+  title: "Bauelemente Kasten - CRM",
+  description: "CRM System fuer Bauelemente Kasten",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0f0f14",
+  themeColor: "#e65644",
 };
 
 export default function RootLayout({
@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased`}>
+      <body className={`${lora.variable} ${lato.variable} font-sans antialiased`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

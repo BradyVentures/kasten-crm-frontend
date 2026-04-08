@@ -8,7 +8,7 @@
   }
 
   ::selection {
-    @apply bg-bd-accent text-bd-bg;
+    @apply bg-bd-accent text-white;
   }
 
   ::-webkit-scrollbar {
@@ -16,21 +16,20 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-bd-bg;
+    @apply bg-bd-bg-secondary;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-bd-text-muted rounded-full;
+    @apply bg-bd-text-muted/40 rounded-full;
   }
 
   input, textarea, select {
-    @apply bg-bd-bg-secondary border border-bd-border rounded-lg px-3 py-2.5 sm:py-2 text-base sm:text-sm text-bd-text
+    @apply bg-white border border-bd-border rounded-lg px-3 py-2.5 sm:py-2 text-base sm:text-sm text-bd-text
       placeholder:text-bd-text-muted
-      focus:outline-none focus:border-bd-border-accent focus:ring-1 focus:ring-bd-accent/20
+      focus:outline-none focus:border-bd-accent focus:ring-1 focus:ring-bd-accent/20
       transition-colors;
   }
 }
 
-/* Scrollbar-hide utility for tabs */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
