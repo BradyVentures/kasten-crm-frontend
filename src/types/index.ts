@@ -63,6 +63,7 @@ export interface Offer {
   sent_at: string | null;
   accepted_at: string | null;
   declined_at: string | null;
+  visualizer_image_url: string | null;
   created_at: string;
   updated_at: string;
   items?: OfferItem[];
