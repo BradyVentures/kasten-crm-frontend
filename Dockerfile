@@ -7,8 +7,7 @@ RUN npm ci
 
 COPY . .
 
-ARG NEXT_PUBLIC_API_URL=https://kasten-crm-api.brady-digital.com/api/v1
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=https://kasten-crm-api.brady-digital.com/api/v1
 
 RUN npm run build
 
